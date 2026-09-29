@@ -1,5 +1,6 @@
 import AppKit
 import MyinkCore
+import QuickLookUI
 
 /// Owns the shelf panel and its edge tab and carries out the `VisibilityMachine`'s effects:
 /// placement on the right display, slide/fade animations, timers, and drag-triggered reveals.
@@ -81,7 +82,7 @@ final class ShelfWindowController: NSObject {
         }
         if old.edge != new.edge || old.alignment != new.alignment || old.size != new.size
             || old.fullLength != new.fullLength || old.screenChoice != new.screenChoice {
-            if old.screenChoice != new.screenChoice { currentScreen = nil }
+            if old.screenChoice != new.screenChoice { currentScreen = isPanelShown ? targetScreen() : nil }
             relayoutIfVisible()
             if machine.isCollapsed { showTab() }
         }
@@ -119,7 +120,7 @@ final class ShelfWindowController: NSObject {
         let result = evaluator.sample(point: point, time: time, screenFrame: screen.frame, isOuterEdge: outer)
         trigger = evaluator
         if let result {
-            if !machine.isVisible { pendingScreen = targetScreen(pointer: point) }
+            pendingScreen = targetScreen(pointer: point)
             send(.revealTriggered(result))
         }
     }
@@ -156,10 +157,22 @@ final class ShelfWindowController: NSObject {
         timers[kind]?.cancel()
         timers[kind] = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(Int(interval * 1000)))
-            guard !Task.isCancelled else { return }
-            self?.timers[kind] = nil
-            self?.send(.timerFired(kind))
+            guard !Task.isCancelled, let self else { return }
+            timers[kind] = nil
+            timerFired(kind, interval: interval)
         }
+    }
+
+    /// Idle timers check where the pointer really is: enter/exit events can be missed around drags.
+    private func timerFired(_ kind: VisibilityMachine.TimerKind, interval: TimeInterval) {
+        if kind == .autoHide || kind == .linger {
+            if isPanelShown, NSMouseInRect(NSEvent.mouseLocation, panel.frame, false) {
+                startTimer(kind, interval) // still over the shelf: check again later
+                return
+            }
+            if machine.pointerInside { apply(machine.handle(.pointerExited)) }
+        }
+        send(.timerFired(kind))
     }
 
     private func cancelTimer(_ kind: VisibilityMachine.TimerKind) {
@@ -214,10 +227,14 @@ final class ShelfWindowController: NSObject {
     private func present(_ newPlacement: VisibilityMachine.Placement) {
         hideTab()
         let screenIsGone = currentScreen.map { screen in !NSScreen.screens.contains(screen) } ?? true
-        if !isPanelShown || screenIsGone {
-            switch newPlacement {
-            case let .nearPointer(point): currentScreen = screen(containing: point)
-            case .edge: currentScreen = pendingScreen ?? targetScreen()
+        switch newPlacement {
+        case let .nearPointer(point):
+            currentScreen = screen(containing: point) // always beside the pointer, on its display
+        case .edge:
+            if let pendingScreen {
+                currentScreen = pendingScreen // a drag reveal: the display the drag is on
+            } else if !isPanelShown || screenIsGone {
+                currentScreen = targetScreen()
             }
         }
         pendingScreen = nil
@@ -335,7 +352,11 @@ final class ShelfWindowController: NSObject {
 
 extension ShelfWindowController: NSWindowDelegate {
     func windowDidResignKey(_ notification: Notification) {
-        viewController.closeQuickLook()
+        // Clicking into Quick Look makes it key; only close it when focus went somewhere else.
+        Task { @MainActor [weak self] in
+            if NSApp.keyWindow is QLPreviewPanel || NSApp.keyWindow === self?.panel { return }
+            self?.viewController.closeQuickLook()
+        }
     }
 }
 

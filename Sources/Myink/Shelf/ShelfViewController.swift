@@ -621,10 +621,9 @@ extension ShelfViewController: ShelfContainerDelegate {
             guard list.rows.indices.contains(rowIndex) else { return }
             let targetEntry = list.rows[rowIndex].entryID
             guard !wholeEntries.contains(targetEntry) else { return } // dropped onto itself
-            store.mutate { state in
-                if !wholeEntries.isEmpty { state.merge(Set(wholeEntries + [targetEntry])) }
-                if !looseItems.isEmpty { state.moveItems(looseItems, intoEntry: targetEntry) }
-            }
+            // Move into the target so it keeps its identity, position and lock.
+            let itemIDs = dragOut.draggedItemIDs
+            store.mutate { $0.moveItems(itemIDs, intoEntry: targetEntry) }
         case .between:
             let index = entryIndex(forRowIndex: target)
             store.mutate { state in

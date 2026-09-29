@@ -78,6 +78,7 @@ if let frontBundleID {
     raise(frontBundleID)
     pause(150)
 }
+
 post(.mouseMoved, at: start)
 pause(80)
 if let frontBundleID { raise(frontBundleID) }

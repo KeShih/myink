@@ -115,6 +115,7 @@ final class ShelfContainerView: NSView {
 
     override func draggingExited(_ sender: (any NSDraggingInfo)?) {
         delegate?.containerDraggingExited()
+        delegate?.containerPointerExited() // tracking areas don't report exits during drags
     }
 
     override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {

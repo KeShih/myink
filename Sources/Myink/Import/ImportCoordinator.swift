@@ -110,8 +110,12 @@ final class ImportCoordinator {
             itemsRoot: store.layout.itemsRoot.path,
             copyFromExternalVolumes: settings.preferences.copyFromExternalVolumes
         )
-        let size = Self.size(of: url, stoppingAbove: policy.externalCopyLimit)
-        switch policy.decide(path: url.path, volume: VolumeTraits.of(url), fileSize: size) {
+        let volume = VolumeTraits.of(url)
+        // Sizing a folder walks it, so only do it when the answer matters (copying from external volumes).
+        let size = policy.copyFromExternalVolumes && volume?.isExternal == true
+            ? Self.size(of: url, stoppingAbove: policy.externalCopyLimit)
+            : nil
+        switch policy.decide(path: url.path, volume: volume, fileSize: size) {
         case .reference:
             do {
                 return try .ready(store.factory.reference(to: url))
@@ -220,7 +224,7 @@ final class ImportCoordinator {
             }
         Task { [weak self, promiseTimeout] in
             try? await Task.sleep(for: promiseTimeout)
-            guard let self, store.state.item(withID: placeholderID)?.isPlaceholder == true else { return }
+            guard let self, store.state.itemAnywhere(withID: placeholderID)?.isPlaceholder == true else { return }
             Log.importer.error("file promise timed out")
             store.markFailed(placeholderID, directory: directory)
         }
@@ -233,7 +237,7 @@ final class ImportCoordinator {
             return
         }
         let relativePath = "\(directory)/\(url.lastPathComponent)"
-        if store.state.item(withID: placeholderID)?.isPlaceholder == true {
+        if store.state.itemAnywhere(withID: placeholderID)?.isPlaceholder == true {
             store.complete(
                 placeholder: placeholderID,
                 with: store.factory.ownedItem(relativePath: relativePath, origin: .promise, id: placeholderID)

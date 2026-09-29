@@ -38,6 +38,8 @@ final class ShelfListView: NSView {
     private var mouseDownRow: RowID?
     private var mouseDownPoint: NSPoint = .zero
     private var selectOnMouseUp: RowID?
+    /// A ⌘-click on a selected row deselects it on mouse-up, unless it becomes a drag of the selection.
+    private var toggleOnMouseUp: RowID?
     private var dragStarted = false
 
     init(layout: ShelfLayout) {
@@ -190,6 +192,7 @@ final class ShelfListView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         dragStarted = false
         selectOnMouseUp = nil
+        toggleOnMouseUp = nil
         mouseDownPoint = point
         guard let index = layoutModel.rowIndex(at: point, frames: frames) else {
             mouseDownRow = nil
@@ -212,6 +215,8 @@ final class ShelfListView: NSView {
         }
         if modifier == .none, selection.contains(row) {
             selectOnMouseUp = row // keep a multi-selection intact in case this becomes a drag
+        } else if modifier == .toggle, selection.contains(row) {
+            toggleOnMouseUp = row // ⌘-drag of a selection (⌘ = force move) keeps all selected rows
         } else {
             selection.click(row, modifier: modifier, order: rows)
             refreshSelection()
@@ -224,6 +229,7 @@ final class ShelfListView: NSView {
         guard hypot(point.x - mouseDownPoint.x, point.y - mouseDownPoint.y) >= 3 else { return }
         dragStarted = true
         selectOnMouseUp = nil
+        toggleOnMouseUp = nil
         Log.shelf.debug("starting drag of \(self.selectedRows.count) row(s)")
         if !selection.contains(row) {
             selection.click(row, modifier: .none, order: rows)
@@ -237,7 +243,12 @@ final class ShelfListView: NSView {
             selection.click(row, modifier: .none, order: rows)
             refreshSelection()
         }
+        if let row = toggleOnMouseUp, !dragStarted {
+            selection.click(row, modifier: .toggle, order: rows)
+            refreshSelection()
+        }
         selectOnMouseUp = nil
+        toggleOnMouseUp = nil
         mouseDownRow = nil
     }
 
@@ -249,6 +260,9 @@ final class ShelfListView: NSView {
                 selection.click(row, modifier: .none, order: rows)
                 refreshSelection()
             }
+        } else if !selection.isEmpty {
+            selection.clear() // empty space: offer the shelf menu, not actions on an off-screen selection
+            refreshSelection()
         }
         return delegate?.listView(self, menuFor: selectedRows)
     }

@@ -38,9 +38,6 @@ final class DragMonitor {
     private var mouseDownTime: TimeInterval = 0
     private(set) var session: Session?
 
-    /// How long to wait for a source to fill the pasteboard with types after `changeCount` moved.
-    private let emptyTypesGrace: TimeInterval = 0.25
-
     func start() {
         guard monitors.isEmpty else { return }
         addMonitor(.leftMouseDown) { $0.mouseDown() }
@@ -95,7 +92,8 @@ final class DragMonitor {
     private func detectDragStart(now: TimeInterval) {
         guard !isPaused, dragPasteboard.changeCount != baselineChangeCount else { return }
         let types = dragPasteboard.types ?? []
-        if types.isEmpty, now - mouseDownTime < emptyTypesGrace { return }
+        // A source clears the pasteboard before writing to it: keep polling until types appear.
+        guard !types.isEmpty else { return }
         let newSession = Session(
             types: types,
             startPoint: mouseDownPoint,

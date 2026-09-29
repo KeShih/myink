@@ -130,7 +130,9 @@ public struct VisibilityMachine: Sendable, Equatable {
                 revealedForDrag = true
                 return [.present(placement)]
             }
-            guard !isVisible else { return [] }
+            // Already visible: present again so the window controller can bring the shelf to the
+            // display the drag is on.
+            guard !isVisible else { return [.present(.edge)] }
             revealedForDrag = true
             return [.present(.edge)]
 
@@ -150,6 +152,8 @@ public struct VisibilityMachine: Sendable, Equatable {
             manuallyHidden = false
             if base != .pinned { base = .shown }
             effects.append(.present(.edge))
+            // The pointer is over the shelf now; once it leaves, the idle policy applies again.
+            if base == .shown, idlePolicy != .stayVisible { effects.append(.startTimer(.autoHide, Self.autoHideInterval)) }
             return effects
 
         case .timerFired(.grace):
@@ -189,6 +193,7 @@ public struct VisibilityMachine: Sendable, Equatable {
             pointerInside = inside
             if itemCount == 0 {
                 base = .hidden
+                pointerInside = false
                 return [.hideAll]
             }
             return shouldAutoHide ? [.startTimer(.autoHide, Self.autoHideInterval)] : []
@@ -210,10 +215,12 @@ public struct VisibilityMachine: Sendable, Equatable {
             itemCount = count
             if count == 0, previous > 0, !dragActive, !internalDragActive, !revealedForDrag, !graceActive {
                 base = .hidden
+                pointerInside = false
                 return [.cancelTimer(.autoHide), .cancelTimer(.linger), .hideAll]
             }
             if !isVisible, base == .collapsed, rest == .hidden {
                 base = .hidden
+                pointerInside = false
                 return [.hideAll]
             }
             return []
@@ -251,8 +258,11 @@ public struct VisibilityMachine: Sendable, Equatable {
         return [.cancelTimer(.grace), .cancelTimer(.autoHide), .cancelTimer(.linger)] + effects(for: base)
     }
 
-    private func effects(for base: Base) -> [Effect] {
-        switch base {
+    /// Effects that put the shelf into `base`. A hidden or collapsed shelf can't be under the
+    /// pointer, so the pointer flag is reset (its exit may never have been reported).
+    private mutating func effects(for base: Base) -> [Effect] {
+        if base == .hidden || base == .collapsed { pointerInside = false }
+        return switch base {
         case .hidden: [.hideAll]
         case .collapsed: [.collapseToTab]
         case .shown, .pinned: [.present(.edge)]

@@ -181,6 +181,31 @@ struct VisibilityMachineTests {
         #expect(visible.isVisible)
     }
 
+    @Test("With collapse or hide policies, a drop arms the idle timer; hiding resets the pointer flag")
+    func dropArmsIdleTimer() {
+        var machine = Machine(itemCount: 1, idlePolicy: .collapse)
+        _ = machine.start()
+        _ = machine.handle(.externalDragBegan)
+        _ = machine.handle(.tabActivated)
+        _ = machine.handle(.pointerEntered)
+        let effects = machine.handle(.dropCompleted)
+        #expect(effects.contains(.startTimer(.autoHide, Machine.autoHideInterval)))
+        _ = machine.handle(.externalDragEnded)
+        _ = machine.handle(.pointerExited)
+        #expect(machine.handle(.timerFired(.autoHide)) == [.collapseToTab])
+        #expect(!machine.pointerInside)
+    }
+
+    @Test("A drag while the shelf is visible re-presents it (so it can follow the pointer's display)")
+    func revealWhileVisible() {
+        var machine = Machine(itemCount: 1)
+        _ = machine.start()
+        _ = machine.handle(.externalDragBegan)
+        #expect(machine.handle(.revealTriggered(.edge)) == [.present(.edge)])
+        #expect(!machine.revealedForDrag)
+        #expect(machine.handle(.externalDragEnded).isEmpty)
+    }
+
     @Test("Reveals are ignored when no drag is active")
     func revealWithoutDrag() {
         var machine = Machine()
