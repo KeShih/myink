@@ -51,6 +51,9 @@ final class ShortcutRecorderView: NSView {
 
     private(set) var isRecording = false
     private var liveModifiers: UInt32 = 0
+    /// Local key-down monitor installed while recording, so ⌘ combos reach the recorder even when
+    /// the SwiftUI hosting view or the main menu would claim them as key equivalents first.
+    private var keyMonitor: Any?
     private let clearButton = NSButton()
     private static let cornerRadius: CGFloat = 6
 
@@ -148,6 +151,12 @@ final class ShortcutRecorderView: NSView {
         startRecording()
     }
 
+    override func accessibilityPerformPress() -> Bool {
+        guard window?.makeFirstResponder(self) == true else { return false }
+        startRecording()
+        return true
+    }
+
     override func keyDown(with event: NSEvent) {
         if isRecording {
             record(event)
@@ -222,16 +231,25 @@ final class ShortcutRecorderView: NSView {
             return
         }
         Log.hotkey.info("Recorded shortcut \(KeyNameTranslator.display(candidate), privacy: .public)")
-        stopRecording()
+        // Store the new combo before lifting the hotkey suspension, so the old one isn't
+        // re-registered only to be replaced immediately.
         combo = candidate
         isShortcutEnabled = true
         onRecord?(candidate)
+        stopRecording()
     }
 
     private func startRecording() {
         guard !isRecording else { return }
         isRecording = true
         liveModifiers = 0
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, isRecording, event.window === window, window?.firstResponder === self else {
+                return event
+            }
+            record(event)
+            return nil
+        }
         refresh()
         onRecordingChanged?(true)
     }
@@ -240,6 +258,10 @@ final class ShortcutRecorderView: NSView {
         guard isRecording else { return }
         isRecording = false
         liveModifiers = 0
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
         refresh()
         onRecordingChanged?(false)
     }
