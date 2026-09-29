@@ -4,6 +4,8 @@
 // Usage: hiddrag <fromX> <fromY> <toX> <toY> [--via X,Y]... [--steps N] [--hold-ms N] [--option] [--command] [--fn]
 // Coordinates are global CoreGraphics points (origin: top-left of the main display).
 // Build:  swiftc -O -o /tmp/hiddrag scripts/dev/hiddrag.swift
+import AppKit
+import ApplicationServices
 import CoreGraphics
 import Foundation
 
@@ -17,6 +19,7 @@ var waypoints: [CGPoint] = []
 var steps = 24
 var holdMilliseconds = 400
 var flags: CGEventFlags = []
+var frontBundleID: String?
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
 while let argument = arguments.next() {
     switch argument {
@@ -30,6 +33,7 @@ while let argument = arguments.next() {
     case "--option": flags.insert(.maskAlternate)
     case "--command": flags.insert(.maskCommand)
     case "--fn": flags.insert(.maskSecondaryFn)
+    case "--front": frontBundleID = arguments.next()
     default:
         guard let number = Double(argument) else { fail("unexpected argument \(argument)") }
         positional.append(number)
@@ -47,6 +51,8 @@ let original = CGEvent(source: nil)?.location ?? start
 func post(_ type: CGEventType, at point: CGPoint) {
     guard let event = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left) else { return }
     event.flags = flags
+    // Real presses carry a click count; some apps (Finder) won't start a drag from a count of 0.
+    if type != .mouseMoved { event.setIntegerValueField(.mouseEventClickState, value: 1) }
     event.post(tap: .cghidEventTap)
 }
 
@@ -54,8 +60,27 @@ func pause(_ milliseconds: Int) {
     usleep(useconds_t(milliseconds * 1000))
 }
 
+/// Raises the app that owns the drag start (via Accessibility) immediately before pressing, so an
+/// active terminal can't take the click.
+func raise(_ bundleID: String) {
+    guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else { return }
+    let element = AXUIElementCreateApplication(app.processIdentifier)
+    AXUIElementSetAttributeValue(element, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+    var windows: AnyObject?
+    if AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &windows) == .success,
+       let first = (windows as? [AXUIElement])?.first {
+        AXUIElementPerformAction(first, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(first, kAXMainAttribute as CFString, kCFBooleanTrue)
+    }
+}
+
+if let frontBundleID {
+    raise(frontBundleID)
+    pause(150)
+}
 post(.mouseMoved, at: start)
 pause(80)
+if let frontBundleID { raise(frontBundleID) }
 post(.leftMouseDown, at: start)
 pause(120)
 

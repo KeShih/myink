@@ -1,5 +1,6 @@
 #!/bin/bash
 # Real-drag end-to-end test: Finder → shelf → Finder, using HID events (moves the actual cursor).
+# Run it while you're not using the Mac: it raises Finder, moves the pointer and steals focus.
 # Needs: Myink installed and running (make run), Accessibility permission for this terminal.
 # Usage: scripts/dev/e2e-drag.sh [rounds]
 set -uo pipefail
@@ -34,12 +35,13 @@ for round in $(seq 1 "$ROUNDS"); do
     open -g -a Finder "$E2E"; sleep 1
     "$TOOLS/axfront" com.apple.finder >/dev/null
     read -r AX AY < <(center alpha.txt)
-    "$TOOLS/hiddrag" "$AX" "$AY" 64 560 --via 300,420 --steps 18 --hold-ms 600 >/dev/null
+    "$TOOLS/hiddrag" "$AX" "$AY" 64 560 --via 300,420 --steps 18 --hold-ms 600 --front com.apple.finder >/dev/null
     check "drag in from Finder adds the file" "wait_count 1"
 
     "$TOOLS/axfront" com.apple.finder >/dev/null
     read -r DX DY < <(center dest)
     read -r SX SY < <(shelf_cell)
+    "$TOOLS/axfront" com.apple.finder >/dev/null
     "$TOOLS/hiddrag" "$SX" "$SY" "$DX" "$DY" --via 250,400 --steps 18 --hold-ms 700 >/dev/null
     check "drag out moves the file into the folder" "sleep 1; [ -f '$E2E/dest/alpha.txt' ] && [ ! -f '$E2E/alpha.txt' ]"
     check "the shelf is empty afterwards" "wait_count 0"

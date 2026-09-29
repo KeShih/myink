@@ -291,7 +291,15 @@ swiftc -O -o /tmp/axfind scripts/dev/axfind.swift     # find an element's frame 
 /tmp/axfind com.apple.finder "report.pdf" [--role AXRow]
 
 swift scripts/dev/windows.swift Myink                 # list on-screen windows and their bounds
+swiftc -O -o /tmp/axfront scripts/dev/axfront.swift   # raise an app via Accessibility
+/tmp/axfront com.apple.finder
+
+scripts/dev/e2e-drag.sh 3    # 3 rounds of Finder → shelf → Finder with real drags
 ```
+
+`e2e-drag.sh` drives the real pointer and raises Finder, so run it while you're not using the Mac.
+`hiddrag --front <bundle-id>` raises the source app right before pressing, which keeps an active
+terminal from taking the click.
 
 Coordinates are global CoreGraphics points, with the origin at the top-left of the main display.
 
