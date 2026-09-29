@@ -1,10 +1,19 @@
 import AppKit
+import Combine
 import MyinkCore
 import SwiftUI
 
 /// `@State` resolves to SwiftUI's macro, whose plugin the Command Line Tools lack; spelling the property wrapper
 /// through a typealias uses the plain `State` wrapper instead.
 private typealias ViewState = State
+
+/// Fires when Myink becomes active or the Settings window is shown again, so panes re-read closure-backed values
+/// (the window is never released, so view state would otherwise go stale between showings).
+private func settingsRefreshEvents() -> some Publisher<Notification, Never> {
+    NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+        .merge(with: NotificationCenter.default.publisher(for: SettingsWindowController.willShowNotification))
+        .receive(on: DispatchQueue.main)
+}
 
 // MARK: - General
 
@@ -84,10 +93,13 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            launchAtLogin = actions.isLaunchAtLoginEnabled()
-            refreshTick += 1
-        }
+        .onAppear(perform: reload)
+        .onReceive(settingsRefreshEvents()) { _ in reload() }
+    }
+
+    private func reload() {
+        launchAtLogin = actions.isLaunchAtLoginEnabled()
+        refreshTick += 1
     }
 }
 
@@ -187,6 +199,8 @@ struct StoragePane: View {
     let actions: SettingsActions
     @ViewState private var storageBytes: Int64?
     @ViewState private var isMeasuring = false
+    /// Identifies the latest measurement so an older, slower one can't overwrite a newer result.
+    @ViewState private var measurement = 0
     @ViewState private var recentlyRemovedCount = 0
     @ViewState private var confirmingEmpty = false
 
@@ -253,9 +267,12 @@ struct StoragePane: View {
             }
         }
         .formStyle(.grouped)
-        .task {
+        .task { await refreshStorage() }
+        .onReceive(settingsRefreshEvents()) { _ in
             recentlyRemovedCount = actions.recentlyRemovedCount()
-            await refreshStorage()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SettingsWindowController.willShowNotification)) { _ in
+            Task { await refreshStorage() }
         }
         .confirmationDialog("Empty Recently Removed?", isPresented: $confirmingEmpty) {
             Button("Empty Recently Removed", role: .destructive) {
@@ -268,14 +285,18 @@ struct StoragePane: View {
         }
     }
 
+    /// Re-reads the Recently Removed count and re-measures disk usage off the main actor. A newer call supersedes
+    /// one still running (e.g. right after emptying Recently Removed), so the shown size is never stale.
     private func refreshStorage() async {
-        guard !isMeasuring else { return }
-        isMeasuring = true
-        defer { isMeasuring = false }
         recentlyRemovedCount = actions.recentlyRemovedCount()
+        measurement += 1
+        let current = measurement
+        isMeasuring = true
         let measure = actions.storageUsage
         let bytes = await Task.detached(priority: .utility) { await measure() }.value
+        guard current == measurement else { return }
         storageBytes = bytes
+        isMeasuring = false
     }
 }
 
@@ -368,7 +389,8 @@ struct AutomationPane: View {
             )
         }
         .formStyle(.grouped)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+        .onAppear { pdfServiceInstalled = actions.isPDFServiceInstalled() }
+        .onReceive(settingsRefreshEvents()) { _ in
             pdfServiceInstalled = actions.isPDFServiceInstalled()
         }
     }

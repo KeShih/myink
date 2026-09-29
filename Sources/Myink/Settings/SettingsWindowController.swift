@@ -26,6 +26,10 @@ struct SettingsActions {
 
 /// The "Myink Settings" window: SwiftUI panes hosted in a plain AppKit window.
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
+    /// Posted by `show()` so the panes re-read values that live outside SettingsStore (login item, PDF service,
+    /// Recently Removed count, disk usage) each time the window comes back.
+    static let willShowNotification = Notification.Name("MyinkSettingsWillShow")
+
     private static let autosaveName = "MyinkSettings"
     private var hasBeenShown = false
     private let hasSavedFrame: Bool
@@ -56,6 +60,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             window.center()
         }
         hasBeenShown = true
+        NotificationCenter.default.post(name: Self.willShowNotification, object: self)
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         Log.app.info("Settings window shown")

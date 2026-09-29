@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -10,6 +11,9 @@ private typealias ViewState = State
 struct ExcludedAppsView: View {
     @Binding var bundleIDs: [String]
     @ViewState private var selection: Set<String> = []
+    /// Regular apps currently running, kept current via NSWorkspace launch/terminate notifications (a Menu's content
+    /// is built with the body, so computing it inline would show a stale list and redo icon work on every update).
+    @ViewState private var runningApps: [RunningApp] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -43,7 +47,7 @@ struct ExcludedAppsView: View {
                 .accessibilityLabel("Remove Selected Apps")
                 Spacer()
                 Menu("Add Running App") {
-                    let apps = runningApps
+                    let apps = runningApps.filter { !bundleIDs.contains($0.bundleID) }
                     if apps.isEmpty {
                         Text("No other apps running")
                     }
@@ -65,6 +69,8 @@ struct ExcludedAppsView: View {
             .buttonStyle(.borderless)
             .padding(.top, 6)
         }
+        .onAppear(perform: reloadRunningApps)
+        .onReceive(workspaceEvents()) { _ in reloadRunningApps() }
     }
 
     private struct RunningApp {
@@ -73,9 +79,16 @@ struct ExcludedAppsView: View {
         let icon: NSImage
     }
 
-    private var runningApps: [RunningApp] {
+    private func workspaceEvents() -> some Publisher<Notification, Never> {
+        let center = NSWorkspace.shared.notificationCenter
+        return center.publisher(for: NSWorkspace.didLaunchApplicationNotification)
+            .merge(with: center.publisher(for: NSWorkspace.didTerminateApplicationNotification))
+            .receive(on: DispatchQueue.main)
+    }
+
+    private func reloadRunningApps() {
         let own = Bundle.main.bundleIdentifier
-        var seen = Set(bundleIDs)
+        var seen: Set<String> = []
         var apps: [RunningApp] = []
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
             guard let bundleID = app.bundleIdentifier, bundleID != own, seen.insert(bundleID).inserted else { continue }
@@ -83,7 +96,7 @@ struct ExcludedAppsView: View {
             icon.size = NSSize(width: 16, height: 16)
             apps.append(RunningApp(bundleID: bundleID, name: app.localizedName ?? bundleID, icon: icon))
         }
-        return apps.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        runningApps = apps.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private func addFromPanel() {
@@ -99,9 +112,11 @@ struct ExcludedAppsView: View {
         append(panel.urls.compactMap { Bundle(url: $0)?.bundleIdentifier })
     }
 
+    /// Adds bundle IDs not already listed, never Myink itself (its own drags must keep working).
     private func append(_ newIDs: [String]) {
+        let own = Bundle.main.bundleIdentifier
         var result = bundleIDs
-        for bundleID in newIDs where !result.contains(bundleID) {
+        for bundleID in newIDs where bundleID != own && !result.contains(bundleID) {
             result.append(bundleID)
         }
         if result != bundleIDs {
