@@ -1,0 +1,15 @@
+--swiftversion 6.2
+--indent 4
+--maxwidth 140
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen balanced
+--commas inline
+--stripunusedargs closure-only
+--self remove
+--importgrouping alpha
+--ifdef no-indent
+--extensionacl on-declarations
+--disable swiftTestingTestCaseNames,redundantReturn,wrapMultilineStatementBraces,preferKeyPath,redundantType,blankLinesAtStartOfScope,blankLinesAtEndOfScope,redundantRawValues,andOperator,hoistPatternLet,docComments,redundantPublic,modifiersOnSameLine
+--selfrequired debug,info,notice,error,fault,warning,trace,log,critical

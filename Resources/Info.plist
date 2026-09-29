@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Myink</string>
+	<key>CFBundleExecutable</key>
+	<string>Myink</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>dev.keshi.myink</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Myink</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>Myink.sdef</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Myink shows previews of the Desktop items you keep on the shelf and hands them back when you drag them out.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Myink shows previews of the Documents items you keep on the shelf and hands them back when you drag them out.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Myink shows previews of the Downloads items you keep on the shelf and hands them back when you drag them out.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Myink shows previews of items from removable drives that you keep on the shelf.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Myink shows previews of items from network volumes that you keep on the shelf.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.keshi.myink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>myink</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Any Item</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Add to Myink</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>addFilesToShelf</string>
+			<key>NSPortName</key>
+			<string>Myink</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Add Selection to Myink</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>addSelectionToShelf</string>
+			<key>NSPortName</key>
+			<string>Myink</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+				<string>public.rtf</string>
+				<string>public.url</string>
+				<string>public.tiff</string>
+				<string>public.png</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

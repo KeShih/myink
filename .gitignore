@@ -1,0 +1,9 @@
+.DS_Store
+/.build/
+/build/
+/.swiftpm/
+/Package.resolved
+*.p12
+*.pem
+*.xcodeproj/
+xcuserdata/

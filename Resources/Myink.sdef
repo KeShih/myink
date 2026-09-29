@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Myink Terminology" xmlns:xi="http://www.w3.org/2003/XInclude">
+    <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef" xpointer="xpointer(/dictionary/suite)"/>
+
+    <suite name="Myink Suite" code="MyNk" description="Put things on the Myink shelf and control it.">
+        <command name="add" code="MyNkAddI" description="Add files or text to the shelf.">
+            <cocoa class="MYKAddCommand"/>
+            <direct-parameter description="A file, a list of files, or text.">
+                <type type="file" list="yes"/>
+                <type type="file"/>
+                <type type="text"/>
+            </direct-parameter>
+            <parameter name="as stack" code="Stck" type="boolean" optional="yes"
+                       description="Group several added files into one stack (default: the Settings choice).">
+                <cocoa key="asStack"/>
+            </parameter>
+            <result type="integer" description="The number of items added."/>
+        </command>
+
+        <command name="show shelf" code="MyNkShow" description="Show the shelf.">
+            <cocoa class="MYKShowCommand"/>
+        </command>
+
+        <command name="hide shelf" code="MyNkHide" description="Hide the shelf.">
+            <cocoa class="MYKHideCommand"/>
+        </command>
+
+        <command name="toggle shelf" code="MyNkTogl" description="Show the shelf if it is hidden, otherwise hide it.">
+            <cocoa class="MYKToggleCommand"/>
+        </command>
+
+        <command name="clear shelf" code="MyNkClr " description="Move the items on the shelf to Recently Removed.">
+            <cocoa class="MYKClearCommand"/>
+            <parameter name="including locked" code="InLk" type="boolean" optional="yes"
+                       description="Also remove locked items (default: false).">
+                <cocoa key="includingLocked"/>
+            </parameter>
+        </command>
+
+        <command name="restore removed items" code="MyNkRstr" description="Put the most recently removed items back on the shelf.">
+            <cocoa class="MYKRestoreCommand"/>
+            <result type="integer" description="The number of items restored."/>
+        </command>
+
+        <class-extension extends="application" description="Myink's top-level scripting object.">
+            <property name="item count" code="MyIc" type="integer" access="r"
+                      description="The number of items on the shelf (a stack counts each of its items).">
+                <cocoa key="itemCount"/>
+            </property>
+        </class-extension>
+    </suite>
+</dictionary>

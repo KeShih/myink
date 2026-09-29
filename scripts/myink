@@ -1,0 +1,61 @@
+#!/bin/bash
+# myink — command-line helper for the Myink shelf app.
+set -euo pipefail
+
+BUNDLE_ID=dev.keshi.myink
+
+usage() {
+    cat <<EOF
+Usage: myink add <path>...       put files or folders on the shelf (several become a stack)
+       myink text <text>...      put a text snippet on the shelf
+       myink url <url> [title]   put a link on the shelf
+       myink show | hide | toggle
+       myink clear [--all]       move items to Recently Removed (--all includes locked items)
+       myink restore             bring back the most recently removed items
+EOF
+}
+
+urlencode() {
+    if command -v perl >/dev/null 2>&1; then
+        printf '%s' "$1" | perl -pe 's/([^A-Za-z0-9._~-])/sprintf("%%%02X", ord($1))/seg'
+    else
+        python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""), end="")' "$1"
+    fi
+}
+
+command="${1:-}"
+[ $# -gt 0 ] && shift
+case "$command" in
+    add)
+        [ $# -gt 0 ] || { usage >&2; exit 64; }
+        paths=()
+        for path in "$@"; do
+            [ -e "$path" ] || { echo "myink: no such file or folder: $path" >&2; exit 66; }
+            paths+=("$(cd "$(dirname "$path")" && pwd -P)/$(basename "$path")")
+        done
+        open -g -b "$BUNDLE_ID" "${paths[@]}"
+        ;;
+    text)
+        [ $# -gt 0 ] || { usage >&2; exit 64; }
+        open -g "myink://add?text=$(urlencode "$*")"
+        ;;
+    url)
+        [ $# -gt 0 ] || { usage >&2; exit 64; }
+        query="url=$(urlencode "$1")"
+        [ $# -gt 1 ] && query="$query&title=$(urlencode "$2")"
+        open -g "myink://add?$query"
+        ;;
+    show | hide | toggle | restore)
+        open -g "myink://$command"
+        ;;
+    clear)
+        if [ "${1:-}" = "--all" ]; then open -g "myink://clear?all=1"; else open -g "myink://clear"; fi
+        ;;
+    -h | --help | help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 64
+        ;;
+esac
