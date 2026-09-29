@@ -34,6 +34,9 @@ final class AppEnvironment: NSObject, AutomationTarget {
     }
 
     func start() {
+        // Myink is started by its login item, never by session restore (the counter resets each
+        // launch, so this is called once here and never paired with enableRelaunchOnLogin).
+        NSApp.disableRelaunchOnLogin()
         store.performMaintenance()
         PreviewMaterializer(store: store).purge()
         store.observe { [weak self] in self?.storeChanged() }
@@ -258,9 +261,11 @@ final class AppEnvironment: NSObject, AutomationTarget {
 
     @discardableResult
     func addFiles(_ urls: [URL], asStack: Bool?, reveal: Bool) -> Int {
-        let added = importer.importFiles(urls, asStack: asStack)
-        if added > 0 { announceAdded(reveal: reveal) }
-        return added
+        // Files already on the shelf count as handled: they're highlighted rather than added twice.
+        let result = importer.importFilesCounting(urls, asStack: asStack)
+        let handled = result.added + result.duplicates
+        if handled > 0 { announceAdded(reveal: reveal) }
+        return handled
     }
 
     @discardableResult

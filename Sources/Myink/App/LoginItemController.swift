@@ -77,14 +77,11 @@ final class LoginItemController {
             if status != .enabled, status != .requiresApproval {
                 try service.register()
             }
-            // A login launch must not also resurrect the pre-logout instance.
-            NSApp.disableRelaunchOnLogin()
             Log.app.info("Login item registered (status \(self.service.status.rawValue))")
         } else {
             if service.status == .enabled || service.status == .requiresApproval {
                 try service.unregister()
             }
-            NSApp.enableRelaunchOnLogin()
             Log.app.info("Login item unregistered")
         }
     }

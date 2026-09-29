@@ -76,7 +76,17 @@ final class ImportCoordinator {
     /// Imports files and folders (open events, Services, URL scheme, AppleScript).
     @discardableResult
     func importFiles(_ urls: [URL], at index: Int? = nil, asStack: Bool? = nil) -> Int {
-        add(urls.compactMap(build(forFile:)), at: index, asStack: asStack)
+        importFilesCounting(urls, at: index, asStack: asStack).added
+    }
+
+    /// Like `importFiles`, also reporting files that were already on the shelf (they're highlighted
+    /// instead of added twice).
+    func importFilesCounting(_ urls: [URL], at index: Int? = nil, asStack: Bool? = nil) -> (added: Int, duplicates: Int) {
+        let duplicates = urls.count(where: { url in
+            let path = ((url as NSURL).filePathURL ?? url).standardizedFileURL.path
+            return store.state.entryReferencing(path: path) != nil
+        })
+        return (add(urls.compactMap(build(forFile:)), at: index, asStack: asStack), duplicates)
     }
 
     @discardableResult

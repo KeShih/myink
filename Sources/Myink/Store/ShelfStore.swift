@@ -272,7 +272,13 @@ final class ShelfStore {
             guard case let .fileReference(reference) = item.content else { return nil }
             return (item.id, reference.bookmark, reference.lastKnownPath)
         }
-        guard !references.isEmpty else { return }
+        guard !references.isEmpty else {
+            if !availability.isEmpty {
+                availability = [:]
+                notify()
+            }
+            return
+        }
         refreshTask?.cancel()
         refreshTask = Task { [weak self] in
             let results = await Self.resolve(references)
@@ -287,8 +293,9 @@ final class ShelfStore {
     }
 
     private func apply(_ results: [(UUID, Bookmarks.Resolution)]) {
-        var newAvailability = availability
-        for (id, resolution) in results {
+        let onShelf = Set(state.entries.flatMap(\.items).map(\.id))
+        var newAvailability: [UUID: Availability] = [:]
+        for (id, resolution) in results where onShelf.contains(id) {
             newAvailability[id] = resolution.availability
             if resolution.isStale, let url = resolution.url {
                 updateReference(id, to: url)
@@ -306,6 +313,7 @@ final class ShelfStore {
 
     /// Items whose files are missing or trashed.
     var unavailableItemIDs: Set<UUID> {
-        Set(availability.filter { $0.value == .missing || $0.value == .inTrash }.keys)
+        let onShelf = Set(state.entries.flatMap(\.items).map(\.id))
+        return Set(availability.filter { ($0.value == .missing || $0.value == .inTrash) && onShelf.contains($0.key) }.keys)
     }
 }

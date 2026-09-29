@@ -72,18 +72,18 @@ final class ThumbnailProvider {
         }
     }
 
-    // MARK: Drawn images
+    // MARK: Drawn images (nonisolated: NSImage drawing handlers run on whatever thread draws the image)
 
-    static func symbol(_ name: String, size: CGFloat, color: NSColor = .secondaryLabelColor) -> NSImage {
+    nonisolated static func symbol(_ name: String, size: CGFloat, color: NSColor = .secondaryLabelColor) -> NSImage {
         let configuration = NSImage.SymbolConfiguration(pointSize: size * 0.55, weight: .regular)
             .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(configuration) ?? NSImage()
     }
 
     /// A small "paper" card: text snippets show their first lines, links a globe and the host.
-    static func card(for snippet: Snippet, title: String, size: CGFloat) -> NSImage {
+    nonisolated static func card(for snippet: Snippet, title: String, size: CGFloat) -> NSImage {
         let cardSize = NSSize(width: size * 0.82, height: size)
-        return NSImage(size: cardSize, flipped: true) { rect in
+        return NSImage(size: cardSize, flipped: true) { @Sendable rect in
             let card = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: size * 0.08, yRadius: size * 0.08)
             NSColor.textBackgroundColor.setFill()
             card.fill()
@@ -124,7 +124,7 @@ final class ThumbnailProvider {
         }
     }
 
-    private static func draw(_ text: String, in rect: NSRect, size: CGFloat, color: NSColor) {
+    private nonisolated static func draw(_ text: String, in rect: NSRect, size: CGFloat, color: NSColor) {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byWordWrapping
         let attributes: [NSAttributedString.Key: Any] = [

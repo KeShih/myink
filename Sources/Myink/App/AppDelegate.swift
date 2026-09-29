@@ -2,11 +2,14 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
+    /// Set when another copy was already running: this one forwards its open requests, then quits.
+    private var runningInstance: NSRunningApplication?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        guard SingleInstanceGuard.claim() else {
-            Log.app.info("another Myink is already running; quitting")
-            exit(0)
+        if let other = SingleInstanceGuard.existingInstance() {
+            Log.app.info("another Myink is already running (pid \(other.processIdentifier)); handing over")
+            runningInstance = other
+            return
         }
         // Built before launch finishes: open events (Dock drops, `open -a`, URLs) can arrive early.
         environment = AppEnvironment()
@@ -14,11 +17,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if runningInstance != nil {
+            // Open events arrive around launch; give them a moment to be forwarded, then quit.
+            Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                exit(0)
+            }
+            return
+        }
         Log.app.info("Myink launched from \(Bundle.main.bundlePath, privacy: .public)")
         environment?.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        if let runningInstance {
+            SingleInstanceGuard.forward(urls, to: runningInstance)
+            return
+        }
         environment?.open(urls)
     }
 
