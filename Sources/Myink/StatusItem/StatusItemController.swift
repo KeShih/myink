@@ -54,7 +54,8 @@ final class StatusItemController: NSObject, NSWindowDelegate, NSDraggingDestinat
             for highlighted in [true, false, true] {
                 button?.highlight(highlighted)
                 try? await Task.sleep(for: .milliseconds(120))
-                if Task.isCancelled { break }
+                // A newer flash owns the highlight now; don't clear it underneath it.
+                if Task.isCancelled { return }
             }
             button?.highlight(false)
         }

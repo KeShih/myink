@@ -66,9 +66,15 @@ final class LoginItemController {
     }
 
     func setEnabled(_ enabled: Bool) throws {
-        guard isInstalledCopy else { throw LoginItemError.notInstalledCopy(bundleURL.path) }
+        guard isInstalledCopy else {
+            // Disabling from another copy is a no-op: unregistering would drop the installed copy's item.
+            if enabled { throw LoginItemError.notInstalledCopy(bundleURL.path) }
+            return
+        }
         if enabled {
-            if service.status != .enabled {
+            // Skip when registered or awaiting approval (`register()` would just fail again there).
+            let status = service.status
+            if status != .enabled, status != .requiresApproval {
                 try service.register()
             }
             // A login launch must not also resurrect the pre-logout instance.

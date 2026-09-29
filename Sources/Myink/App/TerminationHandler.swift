@@ -27,5 +27,9 @@ final class TerminationHandler {
         for source in sources {
             source.cancel()
         }
+        // Restore default delivery so the signals aren't silently ignored afterwards.
+        for signalNumber in [SIGTERM, SIGINT] {
+            signal(signalNumber, SIG_DFL)
+        }
     }
 }
