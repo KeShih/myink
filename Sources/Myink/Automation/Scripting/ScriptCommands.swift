@@ -7,7 +7,7 @@ import AppKit
 /// `add <file | list of files | text> [as stack <boolean>]` → number of items added.
 @objc(MYKAddCommand) final nonisolated class AddCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        let payload = ScriptAddPayload(directParameter)
+        let payload = ScriptAddPayload.textIfTextDescriptor(appleEvent) ?? ScriptAddPayload(directParameter)
         let asStack = evaluatedArguments?["asStack"] as? Bool
         guard let added = onTarget({ target in
             switch payload {
@@ -65,6 +65,18 @@ nonisolated enum ScriptAddPayload: Equatable {
     case files([URL])
     case text(String)
     case unsupported
+
+    /// Cocoa Scripting coerces a text direct parameter to the first sdef type (`file`), turning
+    /// `add "hello"` into `file:///hello`. The raw Apple Event still says what was sent, so text
+    /// descriptors (utxt / utf8 / TEXT) are taken as text before that coercion matters.
+    static func textIfTextDescriptor(_ event: NSAppleEventDescriptor?) -> ScriptAddPayload? {
+        let directObject: AEKeyword = 0x2D2D_2D2D // '----'
+        let textTypes: Set<DescType> = [0x7574_7874, 0x7574_6638, 0x5445_5854] // 'utxt', 'utf8', 'TEXT'
+        guard let descriptor = event?.paramDescriptor(forKeyword: directObject),
+              textTypes.contains(descriptor.descriptorType),
+              let text = descriptor.stringValue else { return nil }
+        return .text(text)
+    }
 
     /// Accepts an NSURL, an NSString (text), or a list of NSURLs / absolute (or `~`) POSIX paths.
     init(_ value: Any?) {
