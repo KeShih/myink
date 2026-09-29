@@ -79,15 +79,59 @@ public struct ShelfState: Codable, Sendable, Hashable {
         }
     }
 
-    /// The state as it should be written to disk: placeholders (imports in flight) are dropped.
+    /// The state as it should be written to disk: placeholders (imports in flight) are dropped, both
+    /// on the shelf and in Recently Removed.
     public var persistable: ShelfState {
-        var copy = self
-        copy.entries = entries.compactMap { entry in
+        func withoutPlaceholders(_ entry: ShelfEntry) -> ShelfEntry? {
             var entry = entry
             entry.items.removeAll(where: \.isPlaceholder)
             return entry.items.isEmpty ? nil : entry
         }
+        var copy = self
+        copy.entries = entries.compactMap(withoutPlaceholders)
+        copy.recentlyRemoved = recentlyRemoved.compactMap { removed in
+            withoutPlaceholders(removed.entry).map { entry in
+                var removed = removed
+                removed.entry = entry
+                return removed
+            }
+        }
         return copy
+    }
+
+    /// Finds an item on the shelf or in Recently Removed.
+    public func itemAnywhere(withID id: UUID) -> ShelfItem? {
+        item(withID: id) ?? recentlyRemoved.lazy.compactMap { $0.entry.items.first { $0.id == id } }.first
+    }
+
+    /// Replaces an item wherever it is (on the shelf or in Recently Removed). Returns false if gone.
+    @discardableResult
+    public mutating func replaceItemAnywhere(_ id: UUID, with newItem: ShelfItem) -> Bool {
+        if item(withID: id) != nil {
+            replaceItem(id, with: newItem)
+            return true
+        }
+        for index in recentlyRemoved.indices {
+            if let itemIndex = recentlyRemoved[index].entry.items.firstIndex(where: { $0.id == id }) {
+                recentlyRemoved[index].entry.items[itemIndex] = newItem
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Adds items to whichever entry (shelf or Recently Removed) holds `id`. Returns false if gone.
+    @discardableResult
+    public mutating func appendAnywhere(_ items: [ShelfItem], besideItem id: UUID) -> Bool {
+        if let index = entryIndex(containingItem: id) {
+            entries[index].items.append(contentsOf: items)
+            return true
+        }
+        if let index = recentlyRemoved.firstIndex(where: { $0.entry.items.contains { $0.id == id } }) {
+            recentlyRemoved[index].entry.items.append(contentsOf: items)
+            return true
+        }
+        return false
     }
 
     /// Top-level directories under Items/ that live or recently removed entries still use.
@@ -217,10 +261,17 @@ public struct ShelfState: Codable, Sendable, Hashable {
         return before.subtracting(referencedOwnedDirectories())
     }
 
-    /// Forgets entries without recording them (e.g. failed imports). Returns orphaned directories.
+    /// Forgets entries/items without recording them (e.g. failed imports), wherever they are.
+    /// Returns directories nothing references anymore.
     public mutating func discard(_ selection: ItemSelection) -> Set<String> {
         let before = referencedOwnedDirectories()
         remove(selection, record: false)
+        if !selection.itemIDs.isEmpty {
+            for index in recentlyRemoved.indices {
+                recentlyRemoved[index].entry.items.removeAll { selection.itemIDs.contains($0.id) }
+            }
+            recentlyRemoved.removeAll { $0.entry.items.isEmpty }
+        }
         return before.subtracting(referencedOwnedDirectories())
     }
 

@@ -269,7 +269,7 @@ final class ShelfListView: NSView {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+        guard event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
               window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
         switch event.charactersIgnoringModifiers {
         case "a": selectAllRows()

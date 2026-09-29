@@ -9,6 +9,7 @@ guard let bundleID = CommandLine.arguments.dropFirst().first,
     FileHandle.standardError.write(Data("usage: axfront <bundle-id> (app must be running)\n".utf8))
     exit(64)
 }
+
 let element = AXUIElementCreateApplication(app.processIdentifier)
 AXUIElementSetAttributeValue(element, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
 var windows: AnyObject?
@@ -16,6 +17,7 @@ if AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &wind
    let first = (windows as? [AXUIElement])?.first {
     AXUIElementPerformAction(first, kAXRaiseAction as CFString)
 }
+
 app.activate()
 usleep(300_000)
 print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?")

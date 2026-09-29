@@ -51,6 +51,21 @@ public struct OwnedFileStore: Sendable {
         return "\(directoryName)/\(name)"
     }
 
+    /// Deletes individual files (relative paths) and then their directories if left empty. Used when
+    /// several items share one directory (the files of one file promise).
+    public func removeFiles(_ relativePaths: some Sequence<String>) {
+        let fileManager = FileManager.default
+        for path in relativePaths where !path.isEmpty && !path.split(separator: "/").contains("..") {
+            let url = layout.url(forOwnedPath: path)
+            try? fileManager.removeItem(at: url)
+            let directory = url.deletingLastPathComponent()
+            if directory.standardizedFileURL != layout.itemsRoot.standardizedFileURL,
+               (try? fileManager.contentsOfDirectory(atPath: directory.path))?.isEmpty == true {
+                try? fileManager.removeItem(at: directory)
+            }
+        }
+    }
+
     /// Deletes whole item directories (by name).
     public func removeDirectories(_ names: some Sequence<String>) {
         for name in names where !name.isEmpty && !name.contains("/") && name != "." && name != ".." {

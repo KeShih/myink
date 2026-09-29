@@ -110,7 +110,7 @@ final class ImportCoordinator {
             itemsRoot: store.layout.itemsRoot.path,
             copyFromExternalVolumes: settings.preferences.copyFromExternalVolumes
         )
-        let size = (try? url.resourceValues(forKeys: [.totalFileSizeKey]))?.totalFileSize.map(Int64.init)
+        let size = Self.size(of: url, stoppingAbove: policy.externalCopyLimit)
         switch policy.decide(path: url.path, volume: VolumeTraits.of(url), fileSize: size) {
         case .reference:
             do {
@@ -222,14 +222,14 @@ final class ImportCoordinator {
             try? await Task.sleep(for: promiseTimeout)
             guard let self, store.state.item(withID: placeholderID)?.isPlaceholder == true else { return }
             Log.importer.error("file promise timed out")
-            store.markFailed(placeholderID)
+            store.markFailed(placeholderID, directory: directory)
         }
     }
 
     private func promiseDelivered(url: URL, error: (any Error)?, directory: String, placeholderID: UUID) {
         if let error {
             Log.importer.error("file promise failed: \(error.localizedDescription, privacy: .public)")
-            store.markFailed(placeholderID)
+            store.markFailed(placeholderID, directory: directory)
             return
         }
         let relativePath = "\(directory)/\(url.lastPathComponent)"
@@ -244,6 +244,24 @@ final class ImportCoordinator {
     }
 
     // MARK: Helpers
+
+    /// Size of a file, or of a folder/bundle's contents (counting stops once past `limit`, so huge
+    /// folders on network volumes aren't walked completely). Nil if unknown.
+    private static func size(of url: URL, stoppingAbove limit: Int64) -> Int64? {
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .totalFileSizeKey, .fileSizeKey]
+        guard let values = try? url.resourceValues(forKeys: keys) else { return nil }
+        guard values.isDirectory == true else {
+            return (values.totalFileSize ?? values.fileSize).map(Int64.init)
+        }
+        guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys)) else { return nil }
+        var total: Int64 = 0
+        for case let child as URL in enumerator {
+            let childValues = try? child.resourceValues(forKeys: keys)
+            total += Int64(childValues?.totalFileSize ?? childValues?.fileSize ?? 0)
+            if total > limit { return total }
+        }
+        return total
+    }
 
     private static func fileURL(of item: NSPasteboardItem) -> URL? {
         guard let string = item.string(forType: .fileURL), let url = URL(string: string), url.isFileURL else { return nil }

@@ -27,8 +27,12 @@ final class ShelfViewController: NSViewController {
     private let list: ShelfListView
     private lazy var container = ShelfContainerView(list: list)
     private var expanded: Set<UUID> = []
-    private var images: [UUID: NSImage] = [:]
+    /// Cell images keyed by `imageKey(for:)`, so a finished import, a rename or a size change
+    /// (all of which change the key) gets a fresh thumbnail.
+    private var images: [String: NSImage] = [:]
     private var imageRequests: Set<String> = []
+    /// Rows whose Quick Look URLs are shown, parallel to the URLs (for the zoom animation).
+    private var previewRows: [RowID] = []
     private var dragIsInternal = false
 
     init(store: ShelfStore, settings: SettingsStore, importer: ImportCoordinator) {
@@ -101,9 +105,10 @@ final class ShelfViewController: NSViewController {
         list.setRows(rows, animated: animated)
         container.header.set(itemCount: store.state.itemCount)
         container.emptyLabel.isHidden = !entries.isEmpty
-        let liveIDs = Set(entries.flatMap(\.items).map(\.id))
-        images = images.filter { liveIDs.contains($0.key) }
-        quickLook.update(urls: selectedPreviewURLs())
+        let liveKeys = Set(entries.flatMap(\.items).map(imageKey(for:)))
+        images = images.filter { liveKeys.contains($0.key) }
+        imageRequests.formIntersection(liveKeys)
+        updateQuickLookIfVisible()
         onContentLengthChanged?()
     }
 
@@ -112,21 +117,24 @@ final class ShelfViewController: NSViewController {
         list.reconfigureCells()
     }
 
+    private func imageKey(for item: ShelfItem) -> String {
+        "\(item.id)-\(item.content.hashValue)-\(item.displayName.hashValue)-\(Int(list.layoutModel.metrics.thumbnailSize))"
+    }
+
     private func image(for item: ShelfItem) -> NSImage {
         let size = list.layoutModel.metrics.thumbnailSize
-        if let cached = images[item.id] { return cached }
+        let key = imageKey(for: item)
+        if let cached = images[key] { return cached }
         let url = store.fileURL(for: item)
         let immediate = thumbnails.immediateImage(for: item, url: url, size: size)
-        images[item.id] = immediate
-        if item.isFileBacked, store.availability(of: item) == .available {
-            let key = "\(item.id)-\(size)"
-            if !imageRequests.contains(key) {
-                imageRequests.insert(key)
-                let scale = view.window?.backingScaleFactor ?? 2
-                thumbnails.thumbnail(for: item, url: url, size: size, scale: scale) { [weak self] image in
-                    self?.images[item.id] = image
-                    self?.list.reconfigureCellsShowing(itemID: item.id)
-                }
+        images[key] = immediate
+        if item.isFileBacked, store.availability(of: item) == .available, !imageRequests.contains(key) {
+            imageRequests.insert(key)
+            let scale = view.window?.backingScaleFactor ?? 2
+            thumbnails.thumbnail(for: item, url: url, size: size, scale: scale) { [weak self] image in
+                guard let self, imageRequests.contains(key) else { return }
+                images[key] = image
+                list.reconfigureCellsShowing(itemID: item.id, in: store.state)
             }
         }
         return immediate
@@ -144,14 +152,23 @@ final class ShelfViewController: NSViewController {
 
     // MARK: Actions
 
+    /// The items behind rows, each once (⌘A selects a stack's row and its expanded child rows).
     private func items(for rows: [RowID]) -> [ShelfItem] {
-        var result: [ShelfItem] = []
+        itemsWithRows(for: rows).map(\.item)
+    }
+
+    private func itemsWithRows(for rows: [RowID]) -> [(item: ShelfItem, row: RowID)] {
+        var result: [(item: ShelfItem, row: RowID)] = []
+        var seen = Set<UUID>()
         for row in rows {
             guard let index = store.state.entryIndex(withID: row.entryID) else { continue }
             let entry = store.state.entries[index]
-            switch row {
-            case .entry: result += entry.items
-            case let .child(_, itemID): result += entry.items.filter { $0.id == itemID }
+            let candidates: [ShelfItem] = switch row {
+            case .entry: entry.items
+            case let .child(_, itemID): entry.items.filter { $0.id == itemID }
+            }
+            for item in candidates where seen.insert(item.id).inserted {
+                result.append((item, row))
             }
         }
         return result
@@ -245,7 +262,7 @@ final class ShelfViewController: NSViewController {
                         $0.content = .ownedFile(OwnedFile(relativePath: "\(directory)/\(newName)", origin: file.origin))
                     }
                 }
-                images[item.id] = nil
+                images = images.filter { !$0.key.hasPrefix(item.id.uuidString) }
             } catch {
                 NSAlert(error: error).runModal()
             }
@@ -302,8 +319,23 @@ final class ShelfViewController: NSViewController {
 
     // MARK: Quick Look
 
+    /// Preview URLs for the selection, remembering which row each came from.
     private func selectedPreviewURLs() -> [URL] {
-        items(for: list.selectedRows).compactMap(previews.url(for:))
+        var urls: [URL] = []
+        var rows: [RowID] = []
+        for (item, row) in itemsWithRows(for: list.selectedRows) {
+            guard let url = previews.url(for: item) else { continue }
+            urls.append(url)
+            rows.append(row)
+        }
+        previewRows = rows
+        return urls
+    }
+
+    /// Keeps an open Quick Look panel in sync (skipped when closed: resolving URLs touches the disk).
+    private func updateQuickLookIfVisible() {
+        guard quickLook.isVisible else { return }
+        quickLook.update(urls: selectedPreviewURLs())
     }
 
     func toggleQuickLook() {
@@ -318,8 +350,10 @@ final class ShelfViewController: NSViewController {
     }
 
     private func handleQuickLookKey(_ event: NSEvent) -> Bool {
+        // Arrows along the list move the selection; the other two page within Quick Look.
+        let listArrows: Set<Int> = list.layoutModel.isVertical ? [125, 126] : [123, 124]
         switch Int(event.keyCode) {
-        case 123 ... 126:
+        case let code where listArrows.contains(code):
             list.keyDown(with: event)
             return true
         case 49, 53:
@@ -331,8 +365,8 @@ final class ShelfViewController: NSViewController {
     }
 
     private func quickLookSourceFrame(_ index: Int) -> NSRect {
-        let rows = list.selectedRows
-        guard rows.indices.contains(index), let frame = list.frame(for: rows[index]), let window = view.window else { return .zero }
+        guard previewRows.indices.contains(index), let frame = list.frame(for: previewRows[index]),
+              let window = view.window else { return .zero }
         return window.convertToScreen(list.convert(frame, to: nil))
     }
 
@@ -403,6 +437,12 @@ final class ShelfViewController: NSViewController {
         if !store.unavailableItemIDs.isEmpty {
             menu.addItem(ClosureMenuItem("Remove Missing Items") { [weak self] in self?.removeMissing() })
         }
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem("Clear Shelf") { [weak self] in self?.clear(includingLocked: false) })
+        let clearAll = ClosureMenuItem("Clear Shelf Including Locked") { [weak self] in self?.clear(includingLocked: true) }
+        clearAll.isAlternate = true
+        clearAll.keyEquivalentModifierMask = .option
+        menu.addItem(clearAll)
         return menu
     }
 
@@ -493,7 +533,7 @@ extension ShelfViewController: ShelfListViewDelegate {
     }
 
     func listViewSelectionDidChange(_ list: ShelfListView) {
-        quickLook.update(urls: selectedPreviewURLs())
+        updateQuickLookIfVisible()
     }
 
     func listViewQuickLook(_ list: ShelfListView) {
@@ -521,7 +561,7 @@ extension ShelfViewController: ShelfListViewDelegate {
 
 extension ShelfViewController: ShelfContainerDelegate {
     private func isInternal(_ info: any NSDraggingInfo) -> Bool {
-        (info.draggingSource as AnyObject?) === list && dragOut.isDragging
+        (info.draggingSource as AnyObject?) === dragOut && dragOut.isDragging
     }
 
     private func updateDrop(_ info: any NSDraggingInfo) -> NSDragOperation {
@@ -628,9 +668,13 @@ final nonisolated class ClosureMenuItem: NSMenuItem {
 }
 
 extension ShelfListView {
-    /// Reconfigures the cells that display `itemID` (after its thumbnail arrived).
-    func reconfigureCellsShowing(itemID: UUID) {
-        reconfigureCells()
+    /// Reconfigures only the rows that display `itemID` (after its thumbnail arrived).
+    func reconfigureCellsShowing(itemID: UUID, in state: ShelfState) {
+        guard let entryIndex = state.entryIndex(containingItem: itemID) else { return }
+        let entryID = state.entries[entryIndex].id
+        for row in rows where row == .entry(entryID) || row == .child(entry: entryID, item: itemID) {
+            if let cell = cell(for: row) { delegate?.listView(self, configure: cell, for: row) }
+        }
     }
 }
 

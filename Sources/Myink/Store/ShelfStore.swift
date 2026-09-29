@@ -20,6 +20,9 @@ final class ShelfStore {
     @ObservationIgnored private var handlers: [() -> Void] = []
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    /// False when shelf.json was unreadable: its data folders must not be garbage-collected, so the
+    /// quarantined manifest can still be recovered by hand.
+    @ObservationIgnored private var loadedCleanly = true
 
     init(layout: StorageLayout = .applicationSupport()) {
         self.layout = layout
@@ -33,11 +36,13 @@ final class ShelfStore {
         case .loaded:
             manifest.refreshBackup()
         case let .recovered(_, quarantined):
+            loadedCleanly = quarantined == nil
             Log.store
                 .error(
                     "shelf.json was unreadable (moved to \(quarantined?.lastPathComponent ?? "-", privacy: .public)); restored the backup"
                 )
         case let .fresh(quarantined):
+            loadedCleanly = quarantined == nil
             if let quarantined {
                 Log.store.error("shelf.json was unreadable (moved to \(quarantined.lastPathComponent, privacy: .public)); starting empty")
             }
@@ -107,7 +112,8 @@ final class ShelfStore {
         return restored
     }
 
-    /// Forgets items without recording them (failed imports) and deletes their data.
+    /// Forgets items without recording them (failed imports), wherever they are, and deletes the
+    /// data nothing else uses.
     func discard(_ selection: ItemSelection) {
         var orphaned: Set<String> = []
         mutate { orphaned = $0.discard(selection) }
@@ -115,32 +121,39 @@ final class ShelfStore {
         failedItems.subtract(selection.itemIDs)
     }
 
-    /// Replaces a placeholder with the finished item.
+    /// Replaces a placeholder with the finished item — on the shelf or, if the user removed it while
+    /// it was importing, in Recently Removed (so restoring it brings back the real item).
     func complete(placeholder id: UUID, with item: ShelfItem) {
-        guard state.item(withID: id)?.isPlaceholder == true else {
-            files.removeDirectories(item.ownedDirectories) // placeholder was removed meanwhile
+        guard state.itemAnywhere(withID: id)?.isPlaceholder == true else {
+            files.removeFiles(item.ownedRelativePaths) // discarded meanwhile; its folder may be shared
             return
         }
-        mutate { $0.replaceItem(id, with: item) }
+        failedItems.remove(id)
+        mutate { $0.replaceItemAnywhere(id, with: item) }
     }
 
     /// Adds another finished item next to a placeholder's entry (extra files of one file promise).
     func append(_ item: ShelfItem, besideItem id: UUID) {
-        guard let index = state.entryIndex(containingItem: id) else {
-            files.removeDirectories(item.ownedDirectories)
+        guard state.itemAnywhere(withID: id) != nil else {
+            files.removeFiles(item.ownedRelativePaths)
             return
         }
-        let entryID = state.entries[index].id
-        mutate { $0.append([item], toEntry: entryID) }
+        mutate { $0.appendAnywhere([item], besideItem: id) }
     }
 
-    func markFailed(_ id: UUID) {
-        guard state.item(withID: id)?.isPlaceholder == true else { return }
+    /// Shows an import as failed, then forgets it a few seconds later (unless it completed after all).
+    /// `directory` is the Items folder the import was writing into, deleted if nothing uses it.
+    func markFailed(_ id: UUID, directory: String? = nil) {
+        guard state.itemAnywhere(withID: id)?.isPlaceholder == true else { return }
         failedItems.insert(id)
         notify()
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(4))
-            self?.discard(ItemSelection(itemIDs: [id]))
+            guard let self, failedItems.contains(id), state.itemAnywhere(withID: id)?.isPlaceholder == true else { return }
+            discard(ItemSelection(itemIDs: [id]))
+            if let directory, !state.referencedOwnedDirectories().contains(directory) {
+                files.removeDirectories([directory])
+            }
         }
     }
 
@@ -167,6 +180,10 @@ final class ShelfStore {
     /// Launch-time housekeeping: prune removals and delete unreferenced item directories.
     func performMaintenance() {
         pruneRecentlyRemoved()
+        guard loadedCleanly else {
+            Log.store.info("skipping cleanup of item folders: the shelf was restored from a backup")
+            return
+        }
         let deleted = files.collectGarbage(referenced: state.referencedOwnedDirectories(), minimumAge: 3600)
         if !deleted.isEmpty { Log.store.info("removed \(deleted.count) orphaned item folders") }
     }

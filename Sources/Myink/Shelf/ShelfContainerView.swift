@@ -185,6 +185,7 @@ final class ShelfHeaderView: NSView {
             menuButton.frame = NSRect(x: bounds.width - button - 8, y: y, width: button, height: button)
             clearButton.frame = NSRect(x: menuButton.frame.minX - button - 2, y: y, width: button, height: button)
             countLabel.frame = NSRect(x: 12, y: y + 2, width: clearButton.frame.minX - 16, height: 16)
+            countLabel.alignment = .left
         } else {
             let x = (bounds.width - button) / 2
             countLabel.frame = NSRect(x: 2, y: bounds.height - 24, width: bounds.width - 4, height: 16)

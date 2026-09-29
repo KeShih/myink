@@ -223,3 +223,40 @@ struct ShelfStateExtractionTests {
         #expect(nothing == nil)
     }
 }
+
+@Suite("ShelfState placeholders in Recently Removed")
+struct ShelfStatePlaceholderTests {
+    @Test("A placeholder removed mid-import can still be completed, and is never persisted")
+    func completeAfterRemoval() {
+        let placeholder = ShelfItem(displayName: "…", content: .placeholder(Placeholder(kind: .receiving)))
+        let entry = ShelfEntry(items: [placeholder])
+        var shelf = ShelfState(entries: [entry])
+        shelf.clear(includingLocked: true)
+        #expect(shelf.persistable.recentlyRemoved.isEmpty)
+        #expect(shelf.itemAnywhere(withID: placeholder.id)?.isPlaceholder == true)
+        let finished = ShelfItem(
+            id: placeholder.id,
+            displayName: "photo.jpg",
+            content: .ownedFile(OwnedFile(relativePath: "D/photo.jpg", origin: .promise))
+        )
+        let replaced = shelf.replaceItemAnywhere(placeholder.id, with: finished)
+        #expect(replaced)
+        let appended = shelf.appendAnywhere([Fixture.ownedItem("second.jpg", directory: "D")], besideItem: placeholder.id)
+        #expect(appended)
+        #expect(shelf.persistable.recentlyRemoved.first?.entry.items.count == 2)
+        #expect(shelf.referencedOwnedDirectories() == ["D"])
+        shelf.restoreLatestBatch()
+        #expect(Fixture.names(shelf) == ["photo.jpg+second.jpg"])
+        let missing = shelf.replaceItemAnywhere(UUID(), with: finished)
+        #expect(!missing)
+    }
+
+    @Test("Discard also forgets failed placeholders that were moved to Recently Removed")
+    func discardAnywhere() {
+        let placeholder = ShelfItem(displayName: "…", content: .placeholder(Placeholder(kind: .copying)))
+        var shelf = ShelfState(entries: [ShelfEntry(items: [placeholder])])
+        shelf.clear(includingLocked: true)
+        _ = shelf.discard(ItemSelection(itemIDs: [placeholder.id]))
+        #expect(shelf.recentlyRemoved.isEmpty)
+    }
+}
