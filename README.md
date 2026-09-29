@@ -25,10 +25,11 @@ dependencies.
   - File promises from Photos, Mail and browsers arrive behind a spinner. Image data is saved as an image file.
   - Links, text and rich text become snippets. Dragging a snippet out gives text fields the original content, and Finder
     gets a `.webloc` or `.textClipping` file.
-- **Stacks.** A multi-item drop becomes one stack. You can drag the whole stack, or expand it and drag single items.
-  Stacks can be split and merged.
+- **Stacks.** A multi-item drop becomes one stack (unless grouping is turned off in Settings). You can drag the whole
+  stack, or expand it and drag single items. Stacks can be split and merged. Dropping something that is already on the
+  shelf doesn't add it twice.
 - **Drag out with Finder rules.** Files are moved on the same volume and copied across volumes. ⌥ forces a copy and ⌘
-  forces a move. Once a drop succeeds, the item leaves the shelf unless it is locked.
+  forces a move. Once a drop succeeds, the item leaves the shelf unless it is locked or *keep after drag-out* is on.
 - **Recently Removed.** Every removal can be undone. Myink keeps the last 50 items for 7 days. Long-press the hotkey to
   restore them, or use the menu.
 - **Hotkey.** The default is **F5**: tap it to toggle the shelf, or hold it for 1 s to restore removed items.
@@ -51,6 +52,9 @@ make run           # build, sign, install to ~/Applications/Myink.app and launch
 
 | Command | What it does |
 |---|---|
+| `make cert` | Creates the local signing identity (once; see "Signing") |
+| `make build` | Compiles with SwiftPM only (no app bundle) |
+| `make bundle` | Builds and assembles a signed `build/Myink.app` |
 | `make run` | Bundles, installs to `~/Applications` and launches Myink |
 | `make install` | Bundles and installs without launching |
 | `make run-fg` | Installs, then runs the installed binary in the foreground (logs go to the terminal) |
@@ -99,8 +103,8 @@ change, because the grants are also keyed to it.
   and copied to another volume.
   - Hold **⌥** to force a copy, or **⌘** to force a move.
   - Snippets and files in Myink's storage are always copied out.
-- After a successful drop the item leaves the shelf. If you press Esc or the drop is refused, the drag is cancelled
-  and the item stays.
+- After a successful drop the item leaves the shelf, unless *keep after drag-out* is on in Settings ▸ Behavior. If you
+  press Esc or the drop is refused, the drag is cancelled and the item stays.
 - **Locks.** A locked item stays on the shelf after being dragged out. Click the lock on a cell to toggle it, or
   ⌥-click a lock to toggle every lock. Holding **fn** while you drag out inverts the lock for that drag.
 - **fn while dragging in** keeps the shelf from appearing. You can turn this off in Settings ▸ Behavior.
@@ -199,19 +203,20 @@ Open Myink's dictionary in Script Editor (File ▸ Open Dictionary…) to see th
 ```applescript
 tell application "Myink"
     add POSIX file "/Users/me/Desktop/a.pdf"
-    add {POSIX file "/tmp/a.txt", POSIX file "/tmp/b.txt"} as stack true
+    add {POSIX file "/tmp/a.txt", POSIX file "/tmp/b.txt"} with as stack
     add "a text snippet"
     show shelf
     hide shelf
     toggle shelf
     clear shelf                     -- keeps locked items
-    clear shelf including locked true
+    clear shelf with including locked
     restore removed items           -- returns the number restored
     get item count                  -- read-only; a stack counts each of its items
 end tell
 ```
 
-From the shell: `osascript -e 'tell application "Myink" to get item count'`.
+Boolean parameters can also be written as `as stack true` or `including locked true`; Script Editor rewrites them to
+the `with …` form when it compiles. From the shell: `osascript -e 'tell application "Myink" to get item count'`.
 
 ### Print dialog (PDF Services)
 

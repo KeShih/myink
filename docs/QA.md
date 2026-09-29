@@ -48,6 +48,7 @@ name, the source app keeps focus, and the source is not modified or deleted.
 | S20 | Terminal: selected text | Text snippet | | |
 | S21 | Screenshot floating thumbnail | Owned copy that survives after the thumbnail's temp file is gone | | |
 | S22 | Duplicate drop of an item already on the shelf | Not added twice; the existing cell flashes | | |
+| S23 | *Group drops into stacks* off, then drop 3 Finder files | Three separate items, no stack | | |
 
 ## 2. Destinations (drag out)
 
@@ -73,6 +74,7 @@ Unless the row says otherwise, the item leaves the shelf after the drop and goes
 | D16 | Text snippet to Finder | Creates a `.textClipping` | | |
 | D17 | Link snippet to Finder | Creates a `.webloc` | | |
 | D18 | Link snippet to a browser tab bar or address bar | Opens the URL | | |
+| D19 | *Keep after drag-out* on (Settings ▸ Behavior), drag an item to Finder | Copied or moved; the item stays on the shelf | | |
 
 ## 3. Behaviors (visibility and triggers)
 
@@ -163,10 +165,10 @@ Run these with a different app frontmost, for example TextEdit, and the shelf sh
 | I18 | `myink://settings`, `myink://quit` | Opens Settings; quits cleanly (the shelf is saved) | | |
 | I19 | `myink://add?path=relative/path` or `myink://bogus` | Ignored and logged; no crash | | |
 | I20 | `osascript`: `add POSIX file "…"` | Returns 1; the item is added | | |
-| I21 | `osascript`: `add {…} as stack true` | One stack | | |
+| I21 | `osascript`: `add {…} with as stack` (or `as stack true`) | One stack | | |
 | I22 | `osascript`: `add "text"` | Text snippet | | |
 | I23 | `osascript`: `show shelf`, `hide shelf`, `toggle shelf` | Each works | | |
-| I24 | `osascript`: `clear shelf`, `clear shelf including locked true` | Items go to Recently Removed | | |
+| I24 | `osascript`: `clear shelf`, `clear shelf with including locked` | Unlocked items, then all items, go to Recently Removed | | |
 | I25 | `osascript`: `restore removed items` | Returns the count restored | | |
 | I26 | `osascript -e 'tell application "Myink" to get item count'` | Correct count (stack children counted) | | |
 | I27 | CLI: `myink add`, `text`, `url`, `show`, `hide`, `toggle`, `clear [--all]`, `restore` | Each works | | |
