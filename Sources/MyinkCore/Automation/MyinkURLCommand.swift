@@ -32,7 +32,9 @@ public enum MyinkURLCommand: Equatable, Sendable {
         let pathParts = components.path.split(separator: "/").map(String.init)
         let name = (components.host?.isEmpty == false ? components.host : pathParts.first)?.lowercased() ?? ""
         let query = components.queryItems ?? []
-        func values(_ key: String) -> [String] { query.filter { $0.name == key }.compactMap(\.value) }
+        func values(_ key: String) -> [String] {
+            query.filter { $0.name == key }.compactMap(\.value)
+        }
         func flag(_ keys: String...) -> Bool? {
             guard let value = keys.lazy.compactMap({ values($0).last }).first?.lowercased() else { return nil }
             return ["1", "true", "yes", "on"].contains(value)

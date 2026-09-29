@@ -47,7 +47,9 @@ final class ShelfCellView: NSView {
         didSet { if isHovered != oldValue { updateControls() } }
     }
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -69,7 +71,12 @@ final class ShelfCellView: NSView {
         badgeButton.action = #selector(badgeClicked)
         badgeButton.toolTip = "Show or hide the items in this stack"
 
-        configure(lockButton, symbol: "lock.fill", action: #selector(lockClicked(_:)), tip: "Locked items stay on the shelf after you drag them out (⌥-click: all items)")
+        configure(
+            lockButton,
+            symbol: "lock.fill",
+            action: #selector(lockClicked(_:)),
+            tip: "Locked items stay on the shelf after you drag them out (⌥-click: all items)"
+        )
         configure(removeButton, symbol: "xmark.circle.fill", action: #selector(removeClicked), tip: "Remove from the shelf")
 
         spinner.style = .spinning
@@ -171,7 +178,10 @@ final class ShelfCellView: NSView {
         badgeButton.contentTintColor = model.isExpanded ? .controlAccentColor : nil
         removeButton.isHidden = !isHovered || pending
         lockButton.isHidden = model.isChild || pending || !(model.isLocked || isHovered)
-        lockButton.image = NSImage(systemSymbolName: model.isLocked ? "lock.fill" : "lock.open", accessibilityDescription: model.isLocked ? "Unlock" : "Lock")
+        lockButton.image = NSImage(
+            systemSymbolName: model.isLocked ? "lock.fill" : "lock.open",
+            accessibilityDescription: model.isLocked ? "Unlock" : "Lock"
+        )
         lockButton.contentTintColor = model.isLocked ? .controlAccentColor : .secondaryLabelColor
         statusIcon.isHidden = statusIcon.image == nil
     }
@@ -243,7 +253,9 @@ final class ShelfCellView: NSView {
 
 /// A button that reacts to the first click even while the shelf isn't key.
 final class FirstMouseButton: NSButton {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 }
 
 /// Draws one image, or a fanned pile of up to three for a stack.
@@ -252,9 +264,13 @@ final class StackThumbnailView: NSView {
         didSet { needsDisplay = true }
     }
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         let shown = Array(images.prefix(3))

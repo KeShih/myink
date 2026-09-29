@@ -57,9 +57,17 @@ final class ShelfListView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    override var isFlipped: Bool { true }
-    override var acceptsFirstResponder: Bool { true }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
+
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 
     /// Everything except the cells' buttons is handled by the list itself.
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -75,10 +83,12 @@ final class ShelfListView: NSView {
         for row in removed {
             guard let cell = cells.removeValue(forKey: row) else { continue }
             if animated {
-                NSAnimationContext.runAnimationGroup({ context in
+                NSAnimationContext.runAnimationGroup { context in
                     context.duration = 0.15
                     cell.animator().alphaValue = 0
-                }, completionHandler: { cell.removeFromSuperview() })
+                } completionHandler: {
+                    MainActor.assumeIsolated { cell.removeFromSuperview() }
+                }
             } else {
                 cell.removeFromSuperview()
             }
@@ -146,7 +156,9 @@ final class ShelfListView: NSView {
 
     // MARK: Selection
 
-    var selectedRows: [RowID] { selection.ordered(in: rows) }
+    var selectedRows: [RowID] {
+        selection.ordered(in: rows)
+    }
 
     func select(_ rows: Set<RowID>) {
         selection.set(rows, order: self.rows)

@@ -34,7 +34,8 @@ final class ThumbnailProvider {
     /// Generates (or fetches) a Quick Look thumbnail for a file item; `completion` runs on the main actor.
     func thumbnail(for item: ShelfItem, url: URL?, size: CGFloat, scale: CGFloat, completion: @escaping (NSImage) -> Void) {
         guard let url, item.isFileBacked else { return }
-        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate?.timeIntervalSince1970 ?? 0
+        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate?
+            .timeIntervalSince1970 ?? 0
         let key = "\(item.id.uuidString)-\(Int(size * scale))-\(Int(modified))"
         if let cached = cache.object(forKey: key as NSString) {
             completion(cached)
@@ -45,7 +46,12 @@ final class ThumbnailProvider {
             return
         }
         pending[key] = [completion]
-        let request = QLThumbnailGenerator.Request(fileAt: url, size: CGSize(width: size, height: size), scale: scale, representationTypes: .thumbnail)
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: CGSize(width: size, height: size),
+            scale: scale,
+            representationTypes: .thumbnail
+        )
         QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { @Sendable [weak self] representation, _ in
             let cgImage = representation?.cgImage
             Task { @MainActor in
@@ -89,15 +95,30 @@ final class ThumbnailProvider {
             case .link:
                 let glyph = symbol("link", size: size * 0.9, color: .controlAccentColor)
                 let glyphSize = glyph.size
-                glyph.draw(in: NSRect(x: rect.midX - glyphSize.width / 2, y: inset.minY + size * 0.08, width: glyphSize.width, height: glyphSize.height))
+                glyph.draw(in: NSRect(
+                    x: rect.midX - glyphSize.width / 2,
+                    y: inset.minY + size * 0.08,
+                    width: glyphSize.width,
+                    height: glyphSize.height
+                ))
                 let host = snippet.url.flatMap { URL(string: $0)?.host() } ?? title
-                draw(host, in: NSRect(x: inset.minX, y: rect.midY + size * 0.08, width: inset.width, height: inset.maxY - rect.midY), size: size * 0.1, color: .secondaryLabelColor)
+                draw(
+                    host,
+                    in: NSRect(x: inset.minX, y: rect.midY + size * 0.08, width: inset.width, height: inset.maxY - rect.midY),
+                    size: size * 0.1,
+                    color: .secondaryLabelColor
+                )
             case .text:
                 draw(snippet.previewText ?? title, in: inset, size: size * 0.085, color: .labelColor)
             case .raw:
                 let glyph = symbol("doc.on.clipboard", size: size, color: .secondaryLabelColor)
                 let glyphSize = glyph.size
-                glyph.draw(in: NSRect(x: rect.midX - glyphSize.width / 2, y: rect.midY - glyphSize.height / 2, width: glyphSize.width, height: glyphSize.height))
+                glyph.draw(in: NSRect(
+                    x: rect.midX - glyphSize.width / 2,
+                    y: rect.midY - glyphSize.height / 2,
+                    width: glyphSize.width,
+                    height: glyphSize.height
+                ))
             }
             return true
         }
@@ -109,9 +130,13 @@ final class ThumbnailProvider {
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: max(size, 5)),
             .foregroundColor: color,
-            .paragraphStyle: paragraph,
+            .paragraphStyle: paragraph
         ]
-        (String(text.prefix(400)) as NSString).draw(with: rect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attributes)
+        (String(text.prefix(400)) as NSString).draw(
+            with: rect,
+            options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+            attributes: attributes
+        )
     }
 }
 

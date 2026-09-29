@@ -28,7 +28,9 @@ final class DragOutSource: NSObject, NSDraggingSource {
     var onBegan: (() -> Void)?
     var onEnded: ((_ screenPoint: NSPoint, _ removedCount: Int) -> Void)?
 
-    var isDragging: Bool { active != nil }
+    var isDragging: Bool {
+        active != nil
+    }
 
     init(store: ShelfStore, settings: SettingsStore) {
         self.store = store
@@ -36,10 +38,14 @@ final class DragOutSource: NSObject, NSDraggingSource {
     }
 
     /// The item IDs being dragged (for internal drops).
-    var draggedItemIDs: Set<UUID> { Set(active?.entries.flatMap(\.itemIDs) ?? []) }
+    var draggedItemIDs: Set<UUID> {
+        Set(active?.entries.flatMap(\.itemIDs) ?? [])
+    }
 
     /// Entries dragged as a whole (for internal drops).
-    var draggedWholeEntryIDs: [UUID] { active?.entries.filter(\.isWholeEntry).map(\.entryID) ?? [] }
+    var draggedWholeEntryIDs: [UUID] {
+        active?.entries.filter(\.isWholeEntry).map(\.entryID) ?? []
+    }
 
     /// Starts a drag for `rows`. `image` supplies each item's preview and `frame` each row's frame in `view`.
     @discardableResult
@@ -96,11 +102,14 @@ final class DragOutSource: NSObject, NSDraggingSource {
         session.animatesToStartingPositionsOnCancelOrFail = true
         session.draggingFormation = draggingItems.count > 1 ? .pile : .none
         onBegan?()
-        Log.export.debug("drag out began: \(draggingItems.count) item(s), kinds \(kinds.map { "\($0)" }.joined(separator: ","), privacy: .public)")
+        Log.export
+            .debug(
+                "drag out began: \(draggingItems.count) item(s), kinds \(kinds.map { "\($0)" }.joined(separator: ","), privacy: .public)"
+            )
         return true
     }
 
-    private func pasteboardWriter(for item: ShelfItem) -> ((any NSPasteboardWriting), DragOutPolicy.Kind)? {
+    private func pasteboardWriter(for item: ShelfItem) -> (any NSPasteboardWriting, DragOutPolicy.Kind)? {
         switch item.content {
         case .fileReference:
             guard let url = store.currentFileURL(for: item) else { return nil }
@@ -148,7 +157,8 @@ final class DragOutSource: NSObject, NSDraggingSource {
             }
         }
         let removed = selection.isEmpty ? [] : store.remove(selection)
-        Log.export.info("drag out ended: \(String(describing: outcome), privacy: .public), removed \(removed.count) entr\(removed.count == 1 ? "y" : "ies")")
+        let outcomeName = String(describing: outcome)
+        Log.export.info("drag out ended: \(outcomeName, privacy: .public), removed \(removed.count) entries")
         droppedOnShelf = false
         if outcome == .moved { store.refreshAvailability() }
         onEnded?(screenPoint, removed.count)

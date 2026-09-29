@@ -13,6 +13,8 @@ final class ShelfWindowController: NSObject {
     private var timers: [VisibilityMachine.TimerKind: Task<Void, Never>] = [:]
     private var trigger: DragTriggerEvaluator?
     private var currentScreen: NSScreen?
+    /// Screen chosen by a drag reveal, used by the next presentation.
+    private var pendingScreen: NSScreen?
     private var placement: VisibilityMachine.Placement = .edge
     private var isPanelShown = false
     private var animationGeneration = 0
@@ -32,10 +34,17 @@ final class ShelfWindowController: NSObject {
         tab.onActivate = { [weak self] in self?.send(.tabActivated) }
         tab.onDrop = { [weak self] info in self?.dropOnTab(info) ?? false }
         wireViewController()
-        NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screensChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
 
-    var isVisible: Bool { machine.isVisible }
+    var isVisible: Bool {
+        machine.isVisible
+    }
 
     func start() {
         apply(machine.start())
@@ -110,7 +119,7 @@ final class ShelfWindowController: NSObject {
         let result = evaluator.sample(point: point, time: time, screenFrame: screen.frame, isOuterEdge: outer)
         trigger = evaluator
         if let result {
-            if !machine.isVisible { currentScreen = targetScreen(pointer: point) }
+            if !machine.isVisible { pendingScreen = targetScreen(pointer: point) }
             send(.revealTriggered(result))
         }
     }
@@ -198,17 +207,20 @@ final class ShelfWindowController: NSObject {
         }
     }
 
-    private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    private var reduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
 
     private func present(_ newPlacement: VisibilityMachine.Placement) {
         hideTab()
-        if !isPanelShown || currentScreen == nil || !NSScreen.screens.contains(where: { $0 == currentScreen }) {
-            if case let .nearPointer(point) = newPlacement {
-                currentScreen = screen(containing: point)
-            } else if currentScreen == nil || !isPanelShown {
-                currentScreen = currentScreen ?? targetScreen()
+        let screenIsGone = currentScreen.map { screen in !NSScreen.screens.contains(screen) } ?? true
+        if !isPanelShown || screenIsGone {
+            switch newPlacement {
+            case let .nearPointer(point): currentScreen = screen(containing: point)
+            case .edge: currentScreen = pendingScreen ?? targetScreen()
             }
         }
+        pendingScreen = nil
         guard let screen = currentScreen ?? targetScreen() else { return }
         currentScreen = screen
         placement = newPlacement
@@ -262,18 +274,22 @@ final class ShelfWindowController: NSObject {
         isPanelShown = false
         animationGeneration += 1
         let generation = animationGeneration
-        let end = reduceMotion ? panel.frame : EdgeGeometry.slideFrame(from: panel.frame, edge: settings.preferences.edge, distance: slideDistance)
-        NSAnimationContext.runAnimationGroup({ context in
+        let end = reduceMotion ? panel.frame : EdgeGeometry.slideFrame(
+            from: panel.frame,
+            edge: settings.preferences.edge,
+            distance: slideDistance
+        )
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.18
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().setFrame(end, display: true)
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        } completionHandler: { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, generation == self.animationGeneration else { return }
                 self.panel.orderOut(nil)
             }
-        })
+        }
         onVisibilityChanged?(false)
         Log.shelf.debug("shelf hidden")
     }
@@ -281,7 +297,10 @@ final class ShelfWindowController: NSObject {
     private func showTab() {
         guard let screen = currentScreen ?? targetScreen() else { return }
         let shelfFrame = frame(for: .edge, on: screen)
-        tab.setFrame(EdgeGeometry.tabFrame(edge: settings.preferences.edge, shelfFrame: shelfFrame, visibleFrame: screen.visibleFrame), display: true)
+        tab.setFrame(
+            EdgeGeometry.tabFrame(edge: settings.preferences.edge, shelfFrame: shelfFrame, visibleFrame: screen.visibleFrame),
+            display: true
+        )
         tab.isVertical = settings.preferences.edge.isVertical
         tab.orderFrontRegardless()
     }
@@ -371,7 +390,9 @@ private final class EdgeTabView: NSView {
         panel?.onActivate?()
     }
 
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         panel?.onActivate?()

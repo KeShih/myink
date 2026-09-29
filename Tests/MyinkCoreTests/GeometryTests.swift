@@ -11,27 +11,76 @@ struct EdgeGeometryTests {
         (ScreenEdge.left, CGRect(x: 8, y: 447, width: 112, height: 300)),
         (ScreenEdge.right, CGRect(x: 1928, y: 447, width: 112, height: 300)),
         (ScreenEdge.top, CGRect(x: 874, y: 1002, width: 300, height: 112)),
-        (ScreenEdge.bottom, CGRect(x: 874, y: 80, width: 300, height: 112)),
+        (ScreenEdge.bottom, CGRect(x: 874, y: 80, width: 300, height: 112))
     ])
     func edges(edge: ScreenEdge, expected: CGRect) {
-        let frame = EdgeGeometry.shelfFrame(edge: edge, alignment: .center, visibleFrame: visible, contentLength: 300, thickness: 112, fullLength: false)
+        let frame = EdgeGeometry.shelfFrame(
+            edge: edge,
+            alignment: .center,
+            visibleFrame: visible,
+            contentLength: 300,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(frame == expected)
     }
 
     @Test("Alignment, length clamping and full length")
     func alignmentAndLength() {
-        let top = EdgeGeometry.shelfFrame(edge: .left, alignment: .start, visibleFrame: visible, contentLength: 300, thickness: 112, fullLength: false)
+        let top = EdgeGeometry.shelfFrame(
+            edge: .left,
+            alignment: .start,
+            visibleFrame: visible,
+            contentLength: 300,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(top.maxY == visible.maxY - EdgeGeometry.margin)
-        let bottom = EdgeGeometry.shelfFrame(edge: .left, alignment: .end, visibleFrame: visible, contentLength: 300, thickness: 112, fullLength: false)
+        let bottom = EdgeGeometry.shelfFrame(
+            edge: .left,
+            alignment: .end,
+            visibleFrame: visible,
+            contentLength: 300,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(bottom.minY == visible.minY + EdgeGeometry.margin)
-        let rightEnd = EdgeGeometry.shelfFrame(edge: .bottom, alignment: .end, visibleFrame: visible, contentLength: 300, thickness: 112, fullLength: false)
+        let rightEnd = EdgeGeometry.shelfFrame(
+            edge: .bottom,
+            alignment: .end,
+            visibleFrame: visible,
+            contentLength: 300,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(rightEnd.maxX == visible.maxX - EdgeGeometry.margin)
 
-        let huge = EdgeGeometry.shelfFrame(edge: .left, alignment: .center, visibleFrame: visible, contentLength: 5000, thickness: 112, fullLength: false)
+        let huge = EdgeGeometry.shelfFrame(
+            edge: .left,
+            alignment: .center,
+            visibleFrame: visible,
+            contentLength: 5000,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(abs(huge.height - (1050 - 16) * EdgeGeometry.maximumEdgeFraction) < 0.001)
-        let tiny = EdgeGeometry.shelfFrame(edge: .left, alignment: .center, visibleFrame: visible, contentLength: 10, thickness: 112, fullLength: false)
+        let tiny = EdgeGeometry.shelfFrame(
+            edge: .left,
+            alignment: .center,
+            visibleFrame: visible,
+            contentLength: 10,
+            thickness: 112,
+            fullLength: false
+        )
         #expect(tiny.height == 112)
-        let full = EdgeGeometry.shelfFrame(edge: .right, alignment: .center, visibleFrame: visible, contentLength: 10, thickness: 112, fullLength: true)
+        let full = EdgeGeometry.shelfFrame(
+            edge: .right,
+            alignment: .center,
+            visibleFrame: visible,
+            contentLength: 10,
+            thickness: 112,
+            fullLength: true
+        )
         #expect(full.height == 1034)
         #expect(full.minY == visible.minY + 8)
     }
@@ -126,7 +175,8 @@ struct ShelfLayoutTests {
         #expect(ShelfRows.rows(for: [stack, single], expanded: []) == [.entry(stack.id), .entry(single.id)])
         let expanded = ShelfRows.rows(for: [stack, single], expanded: [stack.id, single.id])
         #expect(expanded == [
-            .entry(stack.id), .child(entry: stack.id, item: stack.items[0].id), .child(entry: stack.id, item: stack.items[1].id), .entry(single.id),
+            .entry(stack.id), .child(entry: stack.id, item: stack.items[0].id), .child(entry: stack.id, item: stack.items[1].id),
+            .entry(single.id)
         ])
         #expect(expanded[1].entryID == stack.id)
     }

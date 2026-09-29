@@ -89,8 +89,13 @@ public struct VisibilityMachine: Sendable, Equatable {
         self.idlePolicy = idlePolicy
     }
 
-    public var isVisible: Bool { revealedForDrag || base == .shown || base == .pinned }
-    public var isCollapsed: Bool { !isVisible && base == .collapsed }
+    public var isVisible: Bool {
+        revealedForDrag || base == .shown || base == .pinned
+    }
+
+    public var isCollapsed: Bool {
+        !isVisible && base == .collapsed
+    }
 
     /// The idle state for the current item count, policy and manual-hide flag.
     public var rest: Base {

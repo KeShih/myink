@@ -41,7 +41,9 @@ public struct Preferences: Codable, Equatable, Sendable {
 
     public static let defaultsKey = "preferences.v1"
 
-    public var recentlyRemovedMaxAge: TimeInterval { TimeInterval(recentlyRemovedDays) * 24 * 60 * 60 }
+    public var recentlyRemovedMaxAge: TimeInterval {
+        TimeInterval(recentlyRemovedDays) * 24 * 60 * 60
+    }
 
     public static func load(from defaults: UserDefaults, key: String = defaultsKey) -> Preferences {
         guard let data = defaults.data(forKey: key), let preferences = try? JSONDecoder().decode(Preferences.self, from: data) else {

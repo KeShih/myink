@@ -99,7 +99,9 @@ final class ShelfContainerView: NSView {
         delegate?.containerPointerExited()
     }
 
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 
     // MARK: Dragging destination
 
@@ -115,7 +117,9 @@ final class ShelfContainerView: NSView {
         delegate?.containerDraggingExited()
     }
 
-    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool { true }
+    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        true
+    }
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         delegate?.containerPerformDrop(sender) ?? false

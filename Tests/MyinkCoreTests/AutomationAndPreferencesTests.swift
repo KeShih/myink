@@ -18,7 +18,11 @@ struct URLCommandTests {
 
     @Test("add with a URL or text")
     func addURLAndText() {
-        #expect(parse("myink://add?url=https%3A%2F%2Fexample.com%2F%3Fq%3D1&title=Example") == .success(.addURL("https://example.com/?q=1", title: "Example", reveal: true)))
+        #expect(parse("myink://add?url=https%3A%2F%2Fexample.com%2F%3Fq%3D1&title=Example") == .success(.addURL(
+            "https://example.com/?q=1",
+            title: "Example",
+            reveal: true
+        )))
         #expect(parse("myink://add?text=Hello%20world%0Aline%202") == .success(.addText("Hello world\nline 2", reveal: true)))
         #expect(parse("myink:add?text=short") == .success(.addText("short", reveal: true)))
         #expect(parse("myink://add") == .failure(.missingParameter("path, url or text")))

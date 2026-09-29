@@ -207,7 +207,11 @@ struct DragTriggerTests {
         #expect(trigger.sample(point: CGPoint(x: 1100, y: 500), time: 10.2, screenFrame: screen, isOuterEdge: true) == nil)
 
         var nearPointer = evaluator(.onDragStart, nearPointer: true)
-        #expect(nearPointer.sample(point: CGPoint(x: 1010, y: 500), time: 10.1, screenFrame: screen, isOuterEdge: true) == .nearPointer(CGPoint(x: 1010, y: 500)))
+        #expect(nearPointer
+            .sample(point: CGPoint(x: 1010, y: 500), time: 10.1, screenFrame: screen, isOuterEdge: true) == .nearPointer(CGPoint(
+                x: 1010,
+                y: 500
+            )))
     }
 
     @Test("Near edge: outer edges fire at once, interior edges after a dwell, the top edge early")
@@ -251,7 +255,13 @@ struct DragTriggerTests {
         var preferences = Preferences()
         let files = [TypeCatalog.fileURL]
         func accepts(_ types: [String] = files, source: String? = "com.apple.finder", fn: Bool = false) -> Bool {
-            DragAcceptance.accepts(types: types, sourceBundleID: source, fnHeld: fn, preferences: preferences, ownBundleID: "dev.keshi.myink")
+            DragAcceptance.accepts(
+                types: types,
+                sourceBundleID: source,
+                fnHeld: fn,
+                preferences: preferences,
+                ownBundleID: "dev.keshi.myink"
+            )
         }
         #expect(accepts())
         #expect(!accepts(fn: true))

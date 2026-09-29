@@ -4,7 +4,9 @@ public enum ScreenEdge: String, Codable, CaseIterable, Sendable {
     case left, right, top, bottom
 
     /// Left/right shelves run vertically; top/bottom shelves run horizontally.
-    public var isVertical: Bool { self == .left || self == .right }
+    public var isVertical: Bool {
+        self == .left || self == .right
+    }
 }
 
 public enum EdgeAlignment: String, Codable, CaseIterable, Sendable {
@@ -66,18 +68,17 @@ public enum EdgeGeometry {
         let available = max(edgeLength - 2 * margin, 0)
         let length = fullLength ? available : min(max(contentLength, thickness), available * maximumEdgeFraction)
 
-        let alongStart: CGFloat
-        if edge.isVertical {
+        let alongStart: CGFloat = if edge.isVertical {
             switch alignment {
-            case .start: alongStart = visibleFrame.maxY - margin - length
-            case .center: alongStart = visibleFrame.midY - length / 2
-            case .end: alongStart = visibleFrame.minY + margin
+            case .start: visibleFrame.maxY - margin - length
+            case .center: visibleFrame.midY - length / 2
+            case .end: visibleFrame.minY + margin
             }
         } else {
             switch alignment {
-            case .start: alongStart = visibleFrame.minX + margin
-            case .center: alongStart = visibleFrame.midX - length / 2
-            case .end: alongStart = visibleFrame.maxX - margin - length
+            case .start: visibleFrame.minX + margin
+            case .center: visibleFrame.midX - length / 2
+            case .end: visibleFrame.maxX - margin - length
             }
         }
 
@@ -104,8 +105,18 @@ public enum EdgeGeometry {
         let size = edge.isVertical ? tabSize : CGSize(width: tabSize.height, height: tabSize.width)
         switch edge {
         case .left: return CGRect(x: visibleFrame.minX, y: shelfFrame.midY - size.height / 2, width: size.width, height: size.height)
-        case .right: return CGRect(x: visibleFrame.maxX - size.width, y: shelfFrame.midY - size.height / 2, width: size.width, height: size.height)
-        case .top: return CGRect(x: shelfFrame.midX - size.width / 2, y: visibleFrame.maxY - size.height, width: size.width, height: size.height)
+        case .right: return CGRect(
+                x: visibleFrame.maxX - size.width,
+                y: shelfFrame.midY - size.height / 2,
+                width: size.width,
+                height: size.height
+            )
+        case .top: return CGRect(
+                x: shelfFrame.midX - size.width / 2,
+                y: visibleFrame.maxY - size.height,
+                width: size.width,
+                height: size.height
+            )
         case .bottom: return CGRect(x: shelfFrame.midX - size.width / 2, y: visibleFrame.minY, width: size.width, height: size.height)
         }
     }
@@ -138,13 +149,17 @@ public enum EdgeGeometry {
         for other in allScreens where other != screen {
             switch edge {
             case .left:
-                if abs(other.maxX - screen.minX) <= tolerance, overlaps(other.minY ... other.maxY, screen.minY ... screen.maxY) { return false }
+                if abs(other.maxX - screen.minX) <= tolerance,
+                   overlaps(other.minY ... other.maxY, screen.minY ... screen.maxY) { return false }
             case .right:
-                if abs(other.minX - screen.maxX) <= tolerance, overlaps(other.minY ... other.maxY, screen.minY ... screen.maxY) { return false }
+                if abs(other.minX - screen.maxX) <= tolerance,
+                   overlaps(other.minY ... other.maxY, screen.minY ... screen.maxY) { return false }
             case .top:
-                if abs(other.minY - screen.maxY) <= tolerance, overlaps(other.minX ... other.maxX, screen.minX ... screen.maxX) { return false }
+                if abs(other.minY - screen.maxY) <= tolerance,
+                   overlaps(other.minX ... other.maxX, screen.minX ... screen.maxX) { return false }
             case .bottom:
-                if abs(other.maxY - screen.minY) <= tolerance, overlaps(other.minX ... other.maxX, screen.minX ... screen.maxX) { return false }
+                if abs(other.maxY - screen.minY) <= tolerance,
+                   overlaps(other.minX ... other.maxX, screen.minX ... screen.maxX) { return false }
             }
         }
         return true

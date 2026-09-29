@@ -33,7 +33,10 @@ final class ShelfStore {
         case .loaded:
             manifest.refreshBackup()
         case let .recovered(_, quarantined):
-            Log.store.error("shelf.json was unreadable (moved to \(quarantined?.lastPathComponent ?? "-", privacy: .public)); restored the backup")
+            Log.store
+                .error(
+                    "shelf.json was unreadable (moved to \(quarantined?.lastPathComponent ?? "-", privacy: .public)); restored the backup"
+                )
         case let .fresh(quarantined):
             if let quarantined {
                 Log.store.error("shelf.json was unreadable (moved to \(quarantined.lastPathComponent, privacy: .public)); starting empty")
@@ -145,7 +148,11 @@ final class ShelfStore {
         let preferences = preferences()
         var orphaned: Set<String> = []
         mutate {
-            orphaned = $0.pruneRecentlyRemoved(now: Date(), maxCount: preferences.recentlyRemovedLimit, maxAge: preferences.recentlyRemovedMaxAge)
+            orphaned = $0.pruneRecentlyRemoved(
+                now: Date(),
+                maxCount: preferences.recentlyRemovedLimit,
+                maxAge: preferences.recentlyRemovedMaxAge
+            )
         }
         files.removeDirectories(orphaned)
     }

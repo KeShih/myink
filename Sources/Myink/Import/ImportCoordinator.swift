@@ -114,7 +114,7 @@ final class ImportCoordinator {
         switch policy.decide(path: url.path, volume: VolumeTraits.of(url), fileSize: size) {
         case .reference:
             do {
-                return .ready(try store.factory.reference(to: url))
+                return try .ready(store.factory.reference(to: url))
             } catch {
                 Log.importer.error("couldn't reference \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 return nil
@@ -208,11 +208,16 @@ final class ImportCoordinator {
         }
         let destination = store.layout.itemsRoot.appending(path: directory, directoryHint: .isDirectory)
         // The reader runs on `promiseQueue`: it must not inherit the main actor (Swift 6 would trap).
-        receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: promiseQueue) { @Sendable [weak self] url, error in
-            Task { @MainActor in
-                self?.promiseDelivered(url: url, error: error, directory: directory, placeholderID: placeholderID)
+        receiver
+            .receivePromisedFiles(
+                atDestination: destination,
+                options: [:],
+                operationQueue: promiseQueue
+            ) { @Sendable [weak self] url, error in
+                Task { @MainActor in
+                    self?.promiseDelivered(url: url, error: error, directory: directory, placeholderID: placeholderID)
+                }
             }
-        }
         Task { [weak self, promiseTimeout] in
             try? await Task.sleep(for: promiseTimeout)
             guard let self, store.state.item(withID: placeholderID)?.isPlaceholder == true else { return }
@@ -229,7 +234,10 @@ final class ImportCoordinator {
         }
         let relativePath = "\(directory)/\(url.lastPathComponent)"
         if store.state.item(withID: placeholderID)?.isPlaceholder == true {
-            store.complete(placeholder: placeholderID, with: store.factory.ownedItem(relativePath: relativePath, origin: .promise, id: placeholderID))
+            store.complete(
+                placeholder: placeholderID,
+                with: store.factory.ownedItem(relativePath: relativePath, origin: .promise, id: placeholderID)
+            )
         } else {
             store.append(store.factory.ownedItem(relativePath: relativePath, origin: .promise), besideItem: placeholderID)
         }

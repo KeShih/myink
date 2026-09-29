@@ -82,7 +82,9 @@ final class ShelfViewController: NSViewController {
         return rows + layout.metrics.headerLength
     }
 
-    var thickness: CGFloat { list.layoutModel.metrics.thickness }
+    var thickness: CGFloat {
+        list.layoutModel.metrics.thickness
+    }
 
     func applyPreferences() {
         let layout = Self.layout(for: settings.preferences)
@@ -276,7 +278,9 @@ final class ShelfViewController: NSViewController {
     }
 
     /// The view that should receive keystrokes when the shelf becomes key.
-    var firstResponderView: NSView? { list }
+    var firstResponderView: NSView? {
+        list
+    }
 
     /// A drop onto the collapsed edge tab: import at the top.
     func importDropFromTab(_ info: any NSDraggingInfo) -> Bool {
@@ -338,13 +342,11 @@ final class ShelfViewController: NSViewController {
     }
 
     override nonisolated func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
-        nonisolated(unsafe) let panel = panel
-        MainActor.assumeIsolated { quickLook.begin(panel!) }
+        MainActor.assumeIsolated { quickLook.begin(panel) }
     }
 
     override nonisolated func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
-        nonisolated(unsafe) let panel = panel
-        MainActor.assumeIsolated { quickLook.end(panel!) }
+        MainActor.assumeIsolated { quickLook.end(panel) }
     }
 
     // MARK: Context menu
@@ -377,7 +379,10 @@ final class ShelfViewController: NSViewController {
         let allLocked = store.state.entries.filter { entryIDs.contains($0.id) }.allSatisfy(\.isLocked)
         menu.addItem(ClosureMenuItem(allLocked ? "Unlock" : "Lock") { [weak self] in self?.toggleLock(rows) })
         if rows.count == 1, case let .entry(id) = rows[0], let entry = store.state.entries.first(where: { $0.id == id }), entry.isStack {
-            menu.addItem(ClosureMenuItem(expanded.contains(id) ? "Collapse Stack" : "Expand Stack") { [weak self] in self?.toggleExpanded(id) })
+            menu
+                .addItem(ClosureMenuItem(expanded.contains(id) ? "Collapse Stack" : "Expand Stack") { [weak self] in
+                    self?.toggleExpanded(id)
+                })
             menu.addItem(ClosureMenuItem("Split Stack") { [weak self] in self?.split(id) })
         }
         let entryRows = rows.filter { if case .entry = $0 { true } else { false } }
@@ -601,7 +606,7 @@ extension ShelfViewController: ShelfContainerDelegate {
 // MARK: - Helpers
 
 /// A menu item that runs a closure (menus invoke actions on the main thread).
-nonisolated final class ClosureMenuItem: NSMenuItem {
+final nonisolated class ClosureMenuItem: NSMenuItem {
     private let handler: @MainActor () -> Void
 
     init(_ title: String, key: String = "", handler: @escaping @MainActor () -> Void) {
@@ -617,7 +622,7 @@ nonisolated final class ClosureMenuItem: NSMenuItem {
     }
 
     @objc private func run() {
-        nonisolated(unsafe) let handler = handler
+        let handler = handler
         MainActor.assumeIsolated { handler() }
     }
 }

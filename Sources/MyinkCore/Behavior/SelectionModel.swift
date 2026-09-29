@@ -18,9 +18,13 @@ public struct SelectionModel: Sendable, Equatable {
 
     public init() {}
 
-    public var isEmpty: Bool { selected.isEmpty }
+    public var isEmpty: Bool {
+        selected.isEmpty
+    }
 
-    public func contains(_ row: RowID) -> Bool { selected.contains(row) }
+    public func contains(_ row: RowID) -> Bool {
+        selected.contains(row)
+    }
 
     /// Selected rows in list order.
     public func ordered(in order: [RowID]) -> [RowID] {
@@ -38,7 +42,7 @@ public struct SelectionModel: Sendable, Equatable {
         case .extend:
             guard let anchor, let range = range(from: anchor, to: row, in: order) else {
                 selected = [row]
-                self.anchor = row
+                anchor = row
                 cursor = row
                 return
             }

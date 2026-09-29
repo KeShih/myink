@@ -60,7 +60,8 @@ public struct DragTriggerEvaluator: Sendable {
     }
 
     /// Feeds one pointer sample. Returns a placement the first time the shelf should appear.
-    public mutating func sample(point: CGPoint, time: TimeInterval, screenFrame: CGRect, isOuterEdge: Bool) -> VisibilityMachine.Placement? {
+    public mutating func sample(point: CGPoint, time: TimeInterval, screenFrame: CGRect, isOuterEdge: Bool) -> VisibilityMachine
+        .Placement? {
         guard !hasRevealed else { return nil }
         let reveal: Bool
         switch mode {
@@ -142,7 +143,9 @@ public struct LongPressDetector: Sendable {
         self.threshold = threshold
     }
 
-    public var isPressed: Bool { pressedAt != nil }
+    public var isPressed: Bool {
+        pressedAt != nil
+    }
 
     /// Records a press. Returns the time at which `deadlineReached` should be called, or nil for an
     /// auto-repeat while already pressed.
