@@ -13,3 +13,4 @@
 --extensionacl on-declarations
 --disable swiftTestingTestCaseNames,redundantReturn,wrapMultilineStatementBraces,preferKeyPath,redundantType,blankLinesAtStartOfScope,blankLinesAtEndOfScope,redundantRawValues,andOperator,hoistPatternLet,docComments,redundantPublic,modifiersOnSameLine
 --selfrequired debug,info,notice,error,fault,warning,trace,log,critical
+--exclude .claude,.build,build

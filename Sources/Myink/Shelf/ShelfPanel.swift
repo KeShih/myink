@@ -5,7 +5,7 @@ import AppKit
 /// A borderless, non-activating panel: it floats above normal windows on every Space and over
 /// full-screen apps, receives drags without activating Myink, and can become key (for Quick Look
 /// and keyboard navigation) while another app stays frontmost.
-final class ShelfPanel: NSPanel {
+class ShelfPanel: NSPanel {
     init(contentRect: NSRect = NSRect(x: 0, y: 0, width: 120, height: 320)) {
         // `.nonactivatingPanel` must be part of the style mask at init; adding it later leaves the
         // WindowServer's activation tag out of sync.

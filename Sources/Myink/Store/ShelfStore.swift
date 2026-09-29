@@ -150,6 +150,13 @@ final class ShelfStore {
         files.removeDirectories(orphaned)
     }
 
+    /// Forgets everything in Recently Removed and deletes the data only it used.
+    func emptyRecentlyRemoved() {
+        var orphaned: Set<String> = []
+        mutate { orphaned = $0.pruneRecentlyRemoved(now: Date(), maxCount: 0, maxAge: 0) }
+        files.removeDirectories(orphaned)
+    }
+
     /// Launch-time housekeeping: prune removals and delete unreferenced item directories.
     func performMaintenance() {
         pruneRecentlyRemoved()
