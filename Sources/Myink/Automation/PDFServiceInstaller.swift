@@ -25,9 +25,12 @@ nonisolated enum PDFServiceInstaller {
         Log.automation.info("installed PDF service alias to \(appURL.path(percentEncoded: false), privacy: .public)")
     }
 
+    /// Removes the alias; a no-op if there is none. Unlike `isInstalled()` (which follows links) this
+    /// also clears a dangling symlink in its place, which would otherwise make `install` fail.
     static func uninstall() throws {
-        guard isInstalled() else { return }
-        try FileManager.default.removeItem(at: aliasURL)
-        Log.automation.info("removed PDF service alias")
+        do {
+            try FileManager.default.removeItem(at: aliasURL)
+            Log.automation.info("removed PDF service alias")
+        } catch CocoaError.fileNoSuchFile {}
     }
 }

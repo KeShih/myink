@@ -23,6 +23,9 @@ final class ServicesProvider: NSObject {
         }
         let added = target.addFiles(urls, asStack: nil, reveal: true)
         Log.automation.info("files service: added \(added) item(s) from \(urls.count) file(s)")
+        if added == 0 {
+            error.pointee = "Myink couldn't add those files."
+        }
     }
 
     @objc func addSelectionToShelf(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString>) {

@@ -46,8 +46,23 @@ step() {
     else
         echo "FAIL  $name"
         failures=$((failures + 1))
+        # Continue from the real count so one failure doesn't cascade into the following steps.
+        expected="$(count 2>/dev/null || echo "$expected")"
     fi
     total=$expected
+}
+
+# urlencode <string>: percent-encodes everything except unreserved characters and "/".
+urlencode() {
+    local s=$1 out="" c i
+    for ((i = 0; i < ${#s}; i++)); do
+        c=${s:i:1}
+        case $c in
+            [a-zA-Z0-9.~_/-]) out+=$c ;;
+            *) out+=$(printf '%%%02X' "'$c") ;;
+        esac
+    done
+    printf '%s' "$out"
 }
 
 total="$(count)"
@@ -56,7 +71,7 @@ echo "==> baseline item count: $total"
 step "open -b (file in \$HOME)" $((total + 1)) open -g -b "$BUNDLE_ID" "$FILE1"
 step "myink://add?text=" $((total + 1)) open -g "myink://add?text=hello%20from%20verify"
 step "myink://add?url=&title=" $((total + 1)) open -g "myink://add?url=https%3A%2F%2Fexample.com&title=Example"
-step "myink://add?path=" $((total + 1)) open -g "myink://add?path=$FILE3"
+step "myink://add?path=" $((total + 1)) open -g "myink://add?path=$(urlencode "$FILE3")"
 step "AppleScript add POSIX file" $((total + 1)) \
     osascript -e "tell application id \"$BUNDLE_ID\" to add POSIX file \"$FILE2\""
 step "AppleScript add text" $((total + 1)) \
