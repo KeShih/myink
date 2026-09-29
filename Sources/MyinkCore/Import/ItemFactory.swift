@@ -51,10 +51,15 @@ public struct ItemFactory: Sendable {
         )
     }
 
-    /// Builds an item from pasteboard data. Returns nil for `.nothing` and file URLs (which go
-    /// through `reference(to:)`/`copy(_:)`).
+    /// Builds an item from pasteboard data off the main actor (for large payloads).
     @concurrent
     public func make(_ candidate: ImportCandidate, id: UUID = UUID(), now: Date = Date()) async throws -> ShelfItem? {
+        try makeNow(candidate, id: id, now: now)
+    }
+
+    /// Builds an item from pasteboard data synchronously. Returns nil for `.nothing` and file URLs
+    /// (which go through `reference(to:)`/`copy(_:)`).
+    public func makeNow(_ candidate: ImportCandidate, id: UUID = UUID(), now: Date = Date()) throws -> ShelfItem? {
         switch candidate {
         case .nothing, .fileURL:
             return nil

@@ -266,6 +266,30 @@ public struct ShelfState: Codable, Sendable, Hashable {
         }
     }
 
+    /// Takes items out of their entries (e.g. files dragged out of a stack) and puts them in one new
+    /// entry at `index` (current indexing). Emptied entries disappear. Returns the new entry's ID.
+    @discardableResult
+    public mutating func extractItems(_ itemIDs: Set<UUID>, toNewEntryAt index: Int) -> UUID? {
+        var taken: [ShelfItem] = []
+        var locked = false
+        var removedBefore = 0
+        for (position, entry) in entries.enumerated() {
+            let matching = entry.items.filter { itemIDs.contains($0.id) }
+            guard !matching.isEmpty else { continue }
+            taken += matching
+            locked = locked || entry.isLocked
+            if matching.count == entry.items.count, position < index { removedBefore += 1 }
+        }
+        guard !taken.isEmpty else { return nil }
+        for position in entries.indices {
+            entries[position].items.removeAll { itemIDs.contains($0.id) }
+        }
+        entries.removeAll { $0.items.isEmpty }
+        let entry = ShelfEntry(items: taken, isLocked: locked)
+        insert([entry], at: index - removedBefore)
+        return entry.id
+    }
+
     /// Splits a stack into single-item entries at its position. Returns the new entry IDs.
     @discardableResult
     public mutating func split(_ id: UUID) -> [UUID] {

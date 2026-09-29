@@ -18,6 +18,18 @@ public enum ImportCandidate: Sendable, Equatable {
     case nothing
 }
 
+extension ImportCandidate {
+    /// Bytes of pasteboard data the candidate carries (to decide whether to store it synchronously).
+    public var payloadSize: Int {
+        switch self {
+        case .fileURL, .nothing: 0
+        case let .image(data, _, _, _), let .pdf(data, _): data.count
+        case let .link(_, _, representations), let .text(representations, _), let .raw(representations, _):
+            representations.reduce(0) { $0 + $1.data.count }
+        }
+    }
+}
+
 /// Decides what a snapshot item becomes. Rules, first match wins:
 /// file URL → image data (unless it's rich text with an image inside) → PDF data → web URL →
 /// text → other storable data.

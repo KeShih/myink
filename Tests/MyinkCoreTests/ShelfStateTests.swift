@@ -202,3 +202,24 @@ struct ShelfStateTests {
         #expect(try JSONDecoder().decode(ShelfState.self, from: data) == shelf)
     }
 }
+
+@Suite("ShelfState extraction")
+struct ShelfStateExtractionTests {
+    @Test("Items pulled out of a stack form a new entry at the drop position")
+    func extract() throws {
+        let stack = Fixture.entry("one", "two", "three")
+        let other = Fixture.entry("other")
+        var shelf = ShelfState(entries: [stack, other])
+        let extracted = shelf.extractItems([stack.items[1].id], toNewEntryAt: 2)
+        let newID = try #require(extracted)
+        #expect(Fixture.names(shelf) == ["one+three", "other", "two"])
+        #expect(shelf.entries[2].id == newID)
+
+        let whole = Fixture.entry("x", "y")
+        var second = ShelfState(entries: [whole, Fixture.entry("z")])
+        second.extractItems(Set(whole.items.map(\.id)), toNewEntryAt: 2)
+        #expect(Fixture.names(second) == ["z", "x+y"])
+        let nothing = second.extractItems([UUID()], toNewEntryAt: 0)
+        #expect(nothing == nil)
+    }
+}
