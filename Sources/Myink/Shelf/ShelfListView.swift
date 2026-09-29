@@ -200,6 +200,7 @@ final class ShelfListView: NSView {
         let row = rows[index]
         mouseDownRow = row
         let modifier = modifier(for: event)
+        Log.shelf.debug("mouse down on row \(index) (clicks \(event.clickCount))")
 
         if event.clickCount == 2, modifier == .none {
             if event.modifierFlags.contains(.option) {
@@ -223,6 +224,7 @@ final class ShelfListView: NSView {
         guard hypot(point.x - mouseDownPoint.x, point.y - mouseDownPoint.y) >= 3 else { return }
         dragStarted = true
         selectOnMouseUp = nil
+        Log.shelf.debug("starting drag of \(self.selectedRows.count) row(s)")
         if !selection.contains(row) {
             selection.click(row, modifier: .none, order: rows)
             refreshSelection()
